@@ -47,6 +47,8 @@ pub mod sign_info;
 pub mod x509;
 
 pub mod di;
+pub mod to1;
+
 /// Major version of the protocol
 pub const PROTOCOL_VERSION_MAJOR: Protver = 1;
 /// Minor version of the protocol

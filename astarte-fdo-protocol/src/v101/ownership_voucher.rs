@@ -362,7 +362,8 @@ pub(crate) mod tests {
 
     use super::*;
 
-    const ECC_SIGNATURE: &[u8] = include_bytes!("../../../assets/examples/ov-entry-sign.der");
+    pub(crate) const ECC_SIGNATURE: &[u8] =
+        include_bytes!("../../../assets/examples/ov-entry-sign.der");
 
     pub(crate) fn create_ov_header() -> OvHeader<'static> {
         OvHeader {

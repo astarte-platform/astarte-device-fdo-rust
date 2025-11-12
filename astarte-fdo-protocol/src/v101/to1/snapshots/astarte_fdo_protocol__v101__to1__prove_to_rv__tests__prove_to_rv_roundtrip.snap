@@ -1,0 +1,6 @@
+---
+source: astarte-fdo-protocol/src/v101/to1/prove_to_rv.rs
+expression: buf
+extension: cbor
+snapshot_kind: binary
+---
