@@ -1,0 +1,8 @@
+---
+source: astarte-fdo-protocol/src/v101/hash_hmac.rs
+expression: case
+---
+Hash {
+    hashtype: Sha256,
+    hash: 7424985ee56213b1b0f3699408ac88eae810e6e25596213fc62f1301f96b7d80,
+}

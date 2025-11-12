@@ -1,0 +1,5 @@
+---
+source: astarte-fdo-protocol/src/utils.rs
+expression: hex
+---
+deadbeef

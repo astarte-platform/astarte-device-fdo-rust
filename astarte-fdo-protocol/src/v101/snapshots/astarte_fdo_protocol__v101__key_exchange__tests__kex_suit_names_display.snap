@@ -1,0 +1,10 @@
+---
+source: astarte-fdo-protocol/src/v101/key_exchange.rs
+expression: case
+---
+DHKEXid14
+DHKEXid15
+ASYMKEX2048
+ASYMKEX3072
+ECDH256
+ECDH384

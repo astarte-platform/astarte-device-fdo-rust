@@ -1,0 +1,11 @@
+---
+source: astarte-fdo-protocol/src/v101/error.rs
+expression: error_msg
+---
+ErrorMessage {
+    e_m_error_code: 500,
+    e_m_prev_msg_id: 60,
+    e_m_error_str: "some error",
+    e_m_error_ts: None,
+    e_m_error_c_i_d: None,
+}

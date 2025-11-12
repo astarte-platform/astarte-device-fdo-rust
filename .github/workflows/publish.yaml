@@ -35,6 +35,7 @@ concurrency:
   # It's not safe to cancel the publish
   cancel-in-progress: false
 env:
+  CI: "true"
   CARGO_TERM_COLOR: always
 jobs:
   # Check that the create can be compiled with only the packaged files

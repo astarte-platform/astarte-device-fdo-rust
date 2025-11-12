@@ -1,0 +1,5 @@
+---
+source: astarte-fdo-protocol/src/v101/rendezvous_info.rs
+expression: case
+---
+RVDevPort(3)

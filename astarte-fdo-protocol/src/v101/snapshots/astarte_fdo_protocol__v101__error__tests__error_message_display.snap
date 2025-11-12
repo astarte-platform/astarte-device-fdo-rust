@@ -1,0 +1,5 @@
+---
+source: astarte-fdo-protocol/src/v101/error.rs
+expression: error_msg
+---
+error_code: INTERNAL_SERVER_ERROR, prev_msg_id : 60, error_str: "some error", error_ts: None, c_i_d: None

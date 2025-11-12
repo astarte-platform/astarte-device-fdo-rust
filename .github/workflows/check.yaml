@@ -26,6 +26,7 @@ defaults:
   run:
     shell: bash
 env:
+  CI: "true"
   CARGO_TERM_COLOR: always
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
@@ -60,7 +61,9 @@ jobs:
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Install cargo-docs-rs
         uses: dtolnay/install@cargo-docs-rs
-      - run: cargo docs-rs --locked
+      - run: |
+          cargo docs-rs --locked -p astarte-fdo-protocol
+          cargo docs-rs --locked -p astarte-device-fdo
 
   features:
     runs-on: ubuntu-24.04
