@@ -16,18 +16,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[workspace]
-resolver = "2"
-members = [
-  "astarte-device-fdo",
-  "astarte-fdo-protocol",
-  "e2e-test",
-]
-
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-homepage = "https://astarte.cloud/"
-license = "Apache-2.0"
-repository = "https://github.com/astarte-platform/astarte-device-fdo-rust"
-rust-version = "1.78.0"
+name: REUSE Compliance Check
+on:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: REUSE Compliance Check
+        uses: fsfe/reuse-action@v5
