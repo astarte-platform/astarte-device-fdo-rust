@@ -33,7 +33,7 @@ use super::utils::Hex;
 
 pub(crate) mod device_credentials;
 pub(crate) mod eat_signature;
-pub(crate) mod error;
+pub mod error;
 pub(crate) mod hash_hmac;
 pub(crate) mod key_exchange;
 pub(crate) mod ownership_voucher;

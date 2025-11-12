@@ -27,20 +27,23 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 
+/// A `bstr` with for an encoded `cbor` value.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CborBstr<'a, T> {
+pub struct CborBstr<'a, T> {
     bytes: OnceCell<Cow<'a, Bytes>>,
     value: T,
 }
 
 impl<'a, T> CborBstr<'a, T> {
-    pub(crate) fn new(value: T) -> Self {
+    /// Create a new CborBstr value.
+    pub fn new(value: T) -> Self {
         Self {
             bytes: OnceCell::default(),
             value,
         }
     }
 
+    /// Returns the encoded value as a CBOR byte string.
     pub(crate) fn bytes(&self) -> eyre::Result<&Cow<'a, Bytes>>
     where
         T: Serialize,
@@ -97,10 +100,22 @@ where
     }
 }
 
-pub(crate) type OneOrMore<T> = Repetition<1, T>;
+/// Array with one ore more element.
+///
+/// ```cddl
+/// OneOrMore = [ + bstr ]
+/// ```
+pub type OneOrMore<T> = Repetition<1, T>;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct Repetition<const MIN: usize, T>(Vec<T>);
+/// A repeated CBOR value with a minimum number of elements.
+///
+/// ```cddl
+/// Repeated = [ 2* bstr ]
+/// ```
+///
+/// This requires at list one element, use a [Vec] if you want 0 ore more.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Repetition<const MIN: usize, T>(Vec<T>);
 
 impl<const MIN: usize, T> Repetition<MIN, T> {
     const _ASSET: () = assert!(MIN > 0, "MIN must be greater than 0");
@@ -109,7 +124,8 @@ impl<const MIN: usize, T> Repetition<MIN, T> {
         (values.len() >= MIN).then_some(Self(values))
     }
 
-    pub(crate) fn first(&self) -> &T {
+    /// Returns the first element of the collection.
+    pub fn first(&self) -> &T {
         debug_assert!(!self.0.is_empty());
         // Safety: this structure must have at least MIN elements and MIN is checked at compile time
         //         to be grater than 0
@@ -152,10 +168,12 @@ where
     }
 }
 
-pub(crate) struct Hex<'a>(&'a [u8]);
+/// New type to debug print a byte slice as hex.
+pub struct Hex<'a>(&'a [u8]);
 
 impl<'a> Hex<'a> {
-    pub(crate) fn new(items: &'a [u8]) -> Self {
+    /// Create a new instance for the slice.
+    pub fn new(items: &'a [u8]) -> Self {
         Self(items)
     }
 }
@@ -173,5 +191,88 @@ impl Display for Hex<'_> {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn cbor_str_roundrtip() {
+        let cbr_str = CborBstr::new(ciborium::Value::Integer(42.into()));
+
+        let mut buf = Vec::new();
+        ciborium::into_writer(&cbr_str, &mut buf).unwrap();
+
+        let back: CborBstr<'_, ciborium::Value> = ciborium::from_reader(buf.as_slice()).unwrap();
+
+        assert_eq!(back, cbr_str);
+
+        insta::assert_debug_snapshot!(buf);
+    }
+
+    #[test]
+    fn cbor_str_deref() {
+        let value = ciborium::value::Integer::from(42);
+        let cbr_str = CborBstr::new(ciborium::Value::Integer(value));
+
+        let res = cbr_str.as_integer().unwrap();
+        assert_eq!(res, value);
+    }
+
+    #[test]
+    fn one_or_more_roundrtip() {
+        let one_or_more = OneOrMore::new(vec![ciborium::Value::Integer(42.into())]).unwrap();
+
+        let mut buf = Vec::new();
+        ciborium::into_writer(&one_or_more, &mut buf).unwrap();
+
+        let back: OneOrMore<ciborium::Value> = ciborium::from_reader(buf.as_slice()).unwrap();
+
+        assert_eq!(back, one_or_more);
+
+        insta::assert_debug_snapshot!(buf);
+    }
+
+    #[test]
+    fn one_or_more_empty() {
+        let one_or_more: Option<OneOrMore<ciborium::Value>> = OneOrMore::new(vec![]);
+
+        assert_eq!(one_or_more, None);
+    }
+
+    #[test]
+    fn one_or_more_deref() {
+        let one_or_more = OneOrMore::new(vec![
+            ciborium::Value::Integer(42.into()),
+            ciborium::Value::Text("foo".into()),
+        ])
+        .unwrap();
+
+        assert_eq!(one_or_more.len(), 2);
+        assert!(!one_or_more.is_empty());
+    }
+
+    #[test]
+    fn one_or_more_first() {
+        let first = ciborium::Value::Integer(42.into());
+
+        let one_or_more =
+            OneOrMore::new(vec![first.clone(), ciborium::Value::Text("foo".into())]).unwrap();
+
+        assert_eq!(*one_or_more.first(), first);
+    }
+
+    #[test]
+    fn hex_display() {
+        let value = [0xde, 0xad, 0xbe, 0xef];
+
+        let hex = Hex::new(&value);
+
+        insta::assert_snapshot!(hex);
+        insta::assert_debug_snapshot!(hex);
     }
 }
