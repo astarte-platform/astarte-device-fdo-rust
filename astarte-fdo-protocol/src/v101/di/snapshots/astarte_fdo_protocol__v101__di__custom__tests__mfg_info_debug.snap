@@ -1,0 +1,11 @@
+---
+source: astarte-fdo-protocol/src/v101/di/custom.rs
+expression: mfg_info
+---
+MfgInfo {
+    pk_type: Secp256R1,
+    pk_enc: X509,
+    serial_no: "fdo-serial-no",
+    model_no: "fdo-model-no",
+    cert_info: 6465616462656566,
+}
