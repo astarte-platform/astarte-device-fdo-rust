@@ -16,17 +16,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-//! Astarte FDO Protocol
-//!
-//! This implements the CBOR serialization and deserialization for the protocol messages and
-//! structures.
-
-#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
-
-pub use v101 as latest;
-pub mod v101;
-
-pub mod error;
-pub mod utils;
-
-pub use self::error::Error;
+pub mod device_service_info;
+pub mod device_service_info_ready;
+pub mod done;
+pub mod get_ov_next_entry;
+pub mod hello_device;
+pub mod ov_next_entry;
+pub mod owner_service_info;
+pub mod owner_service_info_ready;
+pub mod prove_device;
+pub mod prove_ov_hdr;
+pub mod setup_device;
