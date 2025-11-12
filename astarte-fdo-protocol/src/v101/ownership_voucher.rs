@@ -348,7 +348,7 @@ impl<'de> Deserialize<'de> for OvEntryPayload<'_> {
 pub type OvExtraInfo<'a> = rustc_hash::FxHashMap<i64, Cow<'a, Bytes>>;
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use coset::{CoseSign1Builder, HeaderBuilder};
     use pretty_assertions::assert_eq;
 
@@ -364,7 +364,7 @@ mod tests {
 
     const ECC_SIGNATURE: &[u8] = include_bytes!("../../../assets/examples/ov-entry-sign.der");
 
-    fn create_ov_header() -> OvHeader<'static> {
+    pub(crate) fn create_ov_header() -> OvHeader<'static> {
         OvHeader {
             ovh_prot_ver: PROTOCOL_VERSION,
             ov_guid: create_guid(),
