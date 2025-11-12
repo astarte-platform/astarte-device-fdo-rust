@@ -16,18 +16,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[workspace]
-resolver = "2"
-members = [
-  "astarte-device-fdo",
-  "astarte-fdo-protocol",
-  "e2e-test",
-]
-
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-homepage = "https://astarte.cloud/"
-license = "Apache-2.0"
-repository = "https://github.com/astarte-platform/astarte-device-fdo-rust"
-rust-version = "1.78.0"
+version = 1
+SPDX-PackageName = "Astarte Device FDO"
+SPDX-PackageDownloadLocation = "https://github.com/astarte-platform/astarte-device-fdo-rust"
