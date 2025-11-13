@@ -17,11 +17,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::borrow::Cow;
+use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::v101::sign_info::EASigInfo;
 use crate::v101::{ClientMessage, Guid, InitialMessage, Message, Msgtype, NonceTo2ProveOv};
+use crate::Error;
 
 use super::prove_ov_hdr::ProveOvHdr;
 
@@ -96,18 +99,25 @@ impl<'de> Deserialize<'de> for HelloDevice<'_> {
 impl Message for HelloDevice<'_> {
     const MSG_TYPE: Msgtype = 60;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        let this = ciborium::from_reader(buf)?;
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        ciborium::from_reader(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.HelloDevice");
 
-        Ok(this)
+            Error::new(ErrorKind::Decode, "the TO2.HelloDevice")
+        })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let mut buf = Vec::new();
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        ciborium::into_writer(self, write).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't encode TO2.HelloDevice");
 
-        ciborium::into_writer(self, &mut buf)?;
-
-        Ok(buf)
+            Error::new(ErrorKind::Decode, "the TO2.HelloDevice")
+        })
     }
 }
 

@@ -16,13 +16,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::Write;
+
 use coset::{CoseSign1, TaggedCborSerializable};
-use eyre::{Context, OptionExt};
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::v101::public_key::PublicKey;
 use crate::v101::randezvous_info::RendezvousInfo;
 use crate::v101::{Guid, Message, Msgtype, NonceTo2SetupDv};
+use crate::Error;
 
 /// ```cddl
 /// ;; This message replaces previous FIDO Device Onboard credentials with new ones
@@ -44,36 +47,82 @@ use crate::v101::{Guid, Message, Msgtype, NonceTo2SetupDv};
 /// )
 /// ```
 #[derive(Debug)]
-pub(crate) struct SetupDevice {
+pub struct SetupDevice {
     pub(crate) sign: CoseSign1,
 }
 
 impl SetupDevice {
-    pub(crate) fn payload(&self) -> eyre::Result<SetupDevicePayload<'static>> {
-        let payload = self.sign.payload.as_deref().ok_or_eyre("missing payload")?;
+    /// Decodes the COSE payload.
+    pub fn payload(&self) -> Result<SetupDevicePayload<'static>, Error> {
+        let payload = self.sign.payload.as_deref().ok_or(Error::new(
+            ErrorKind::Invalid,
+            "the TO2.SetupDevice payload is missing",
+        ))?;
 
-        ciborium::from_reader(payload).wrap_err("couldn't decode payload")
+        ciborium::from_reader(payload).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error =%err, "couldn't decode TO2.SetupDevice payload");
+
+            Error::new(ErrorKind::Decode, "the TO2.SetupDevice payload")
+        })
     }
 }
 
 impl Message for SetupDevice {
     const MSG_TYPE: Msgtype = 65;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        let sign = CoseSign1::from_tagged_slice(buf)?;
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        let sign = CoseSign1::from_tagged_slice(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error =%err, "couldn't decode TO2.SetupDevice");
+
+            Error::new(ErrorKind::Decode, "the TO2.SetupDevice")
+        })?;
+
+        if sign.payload.is_none() {
+            return Err(Error::new(
+                ErrorKind::Invalid,
+                "the TO2.SetupDevice payload is missing",
+            ));
+        }
 
         Ok(SetupDevice { sign })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let buf = self.sign.clone().to_tagged_vec()?;
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        self.sign
+            .clone()
+            .to_tagged_vec()
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error =%err, "couldn't encode TO2.SetupDevice");
 
-        Ok(buf)
+                Error::new(ErrorKind::Encode, "the TO2.SetupDevice")
+            })
+            .and_then(|buf| {
+                write.write_all(&buf).map_err(|err| {
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(error =%err, "couldn't write TO2.SetupDevice");
+
+                    Error::new(ErrorKind::Write, "the TO2.SetupDevice")
+                })
+            })
     }
 }
 
+/// ```cddl
+/// TO2SetupDevicePayload = [
+///     RendezvousInfo, ;; RendezvousInfo replacement
+///     Guid,           ;; GUID replacement
+///     NonceTO2SetupDv,         ;; proves freshness of signature
+///     Owner2Key       ;; Replacement for Owner key
+/// ]
+/// ```
 #[derive(Debug)]
-pub(crate) struct SetupDevicePayload<'a> {
+pub struct SetupDevicePayload<'a> {
     pub(crate) rendezvous_info: RendezvousInfo<'a>,
     pub(crate) guid: Guid,
     pub(crate) nonce_to2_setup_dv: NonceTo2SetupDv,

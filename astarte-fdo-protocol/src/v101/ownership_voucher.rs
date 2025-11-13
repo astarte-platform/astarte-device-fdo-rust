@@ -19,11 +19,12 @@
 use std::borrow::Cow;
 
 use coset::{AsCborValue, CoseSign1};
-use eyre::{Context, OptionExt};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
+use crate::error::ErrorKind;
 use crate::utils::CborBstr;
+use crate::Error;
 
 use super::hash_hmac::{HMac, Hash};
 use super::public_key::PublicKey;
@@ -195,14 +196,19 @@ pub(crate) struct OvEntry {
 const SIGN_TAG: u64 = coset::iana::CborTag::CoseSign1 as u64;
 
 impl OvEntry {
-    pub(crate) fn payload(self) -> eyre::Result<(Vec<u8>, OvEntryPayload<'static>)> {
+    pub(crate) fn payload(self) -> Result<(Vec<u8>, OvEntryPayload<'static>), Error> {
         let payload = self
             .entry
             .payload
-            .ok_or_eyre("ov entry payload is missing")?;
+            .ok_or(Error::new(ErrorKind::Invalid, "OVEntry payload is missing"))?;
 
         let value: OvEntryPayload<'static> =
-            ciborium::from_reader(payload.as_slice()).wrap_err("coudldn't decode payload")?;
+            ciborium::from_reader(payload.as_slice()).map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't decode OvEntryPayload");
+
+                Error::new(ErrorKind::Decode, "the OVEntry payload")
+            })?;
 
         Ok((payload, value))
     }

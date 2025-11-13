@@ -20,11 +20,12 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::Deref;
 
-use eyre::bail;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
+use crate::error::ErrorKind;
 use crate::utils::OneOrMore;
+use crate::Error;
 
 /// ```cddl
 /// RendezvousInfo = [
@@ -66,7 +67,7 @@ impl<'a> Deref for RendezvousDirective<'a> {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RendezvousInstr<'a> {
-    pub(crate) rv_variable: RVVariable,
+    pub(crate) rv_variable: RvVariable,
     pub(crate) rv_value: RVValue<'a>,
 }
 
@@ -122,78 +123,78 @@ impl<'de> Deserialize<'de> for RendezvousInstr<'_> {
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "u8", into = "u8")]
 #[repr(u8)]
-pub(crate) enum RVVariable {
-    RVDevOnly = 0,
-    RVOwnerOnly = 1,
-    RVIPAddress = 2,
-    RVDevPort = 3,
-    RVOwnerPort = 4,
-    RVDns = 5,
-    RVSvCertHash = 6,
-    RVClCertHash = 7,
-    RVUserInput = 8,
-    RVWifiSsid = 9,
-    RVWifiPw = 10,
-    RVMedium = 11,
-    RVProtocol = 12,
-    RVDelaysec = 13,
-    RVBypass = 14,
-    RVExtRV = 15,
+pub(crate) enum RvVariable {
+    DevOnly = 0,
+    OwnerOnly = 1,
+    IPAddress = 2,
+    DevPort = 3,
+    OwnerPort = 4,
+    Dns = 5,
+    SvCertHash = 6,
+    ClCertHash = 7,
+    UserInput = 8,
+    WifiSsid = 9,
+    WifiPw = 10,
+    Medium = 11,
+    Protocol = 12,
+    Delaysec = 13,
+    Bypass = 14,
+    ExtRV = 15,
 }
 
-impl Debug for RVVariable {
+impl Debug for RvVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RVDevOnly => write!(f, "RVDevOnly(0)"),
-            Self::RVOwnerOnly => write!(f, "RVOwnerOnly(1)"),
-            Self::RVIPAddress => write!(f, "RVIPAddress(2)"),
-            Self::RVDevPort => write!(f, "RVDevPort(3)"),
-            Self::RVOwnerPort => write!(f, "RVOwnerPort(4)"),
-            Self::RVDns => write!(f, "RVDns(5)"),
-            Self::RVSvCertHash => write!(f, "RVSvCertHash(6)"),
-            Self::RVClCertHash => write!(f, "RVClCertHash(7)"),
-            Self::RVUserInput => write!(f, "RVUserInput(8)"),
-            Self::RVWifiSsid => write!(f, "RVWifiSsid(9)"),
-            Self::RVWifiPw => write!(f, "RVWifiPw(10)"),
-            Self::RVMedium => write!(f, "RVMedium(11)"),
-            Self::RVProtocol => write!(f, "RVProtocol(12)"),
-            Self::RVDelaysec => write!(f, "RVDelaysec(13)"),
-            Self::RVBypass => write!(f, "RVBypass(14)"),
-            Self::RVExtRV => write!(f, "RVExtRV(15)"),
+            Self::DevOnly => write!(f, "RVDevOnly(0)"),
+            Self::OwnerOnly => write!(f, "RVOwnerOnly(1)"),
+            Self::IPAddress => write!(f, "RVIPAddress(2)"),
+            Self::DevPort => write!(f, "RVDevPort(3)"),
+            Self::OwnerPort => write!(f, "RVOwnerPort(4)"),
+            Self::Dns => write!(f, "RVDns(5)"),
+            Self::SvCertHash => write!(f, "RVSvCertHash(6)"),
+            Self::ClCertHash => write!(f, "RVClCertHash(7)"),
+            Self::UserInput => write!(f, "RVUserInput(8)"),
+            Self::WifiSsid => write!(f, "RVWifiSsid(9)"),
+            Self::WifiPw => write!(f, "RVWifiPw(10)"),
+            Self::Medium => write!(f, "RVMedium(11)"),
+            Self::Protocol => write!(f, "RVProtocol(12)"),
+            Self::Delaysec => write!(f, "RVDelaysec(13)"),
+            Self::Bypass => write!(f, "RVBypass(14)"),
+            Self::ExtRV => write!(f, "RVExtRV(15)"),
         }
     }
 }
 
-impl TryFrom<u8> for RVVariable {
-    type Error = eyre::Report;
+impl TryFrom<u8> for RvVariable {
+    type Error = crate::Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let value = match value {
-            0 => Self::RVDevOnly,
-            1 => Self::RVOwnerOnly,
-            2 => Self::RVIPAddress,
-            3 => Self::RVDevPort,
-            4 => Self::RVOwnerPort,
-            5 => Self::RVDns,
-            6 => Self::RVSvCertHash,
-            7 => Self::RVClCertHash,
-            8 => Self::RVUserInput,
-            9 => Self::RVWifiSsid,
-            10 => Self::RVWifiPw,
-            11 => Self::RVMedium,
-            12 => Self::RVProtocol,
-            13 => Self::RVDelaysec,
-            14 => Self::RVBypass,
-            15 => Self::RVExtRV,
-            _ => bail!("value out of range: {value}"),
+            0 => Self::DevOnly,
+            1 => Self::OwnerOnly,
+            2 => Self::IPAddress,
+            3 => Self::DevPort,
+            4 => Self::OwnerPort,
+            5 => Self::Dns,
+            6 => Self::SvCertHash,
+            7 => Self::ClCertHash,
+            8 => Self::UserInput,
+            9 => Self::WifiSsid,
+            10 => Self::WifiPw,
+            11 => Self::Medium,
+            12 => Self::Protocol,
+            13 => Self::Delaysec,
+            14 => Self::Bypass,
+            15 => Self::ExtRV,
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for RVValue")),
         };
 
         Ok(value)
     }
 }
 
-impl From<RVVariable> for u8 {
-    fn from(value: RVVariable) -> Self {
+impl From<RvVariable> for u8 {
+    fn from(value: RvVariable) -> Self {
         value as u8
     }
 }
@@ -235,7 +236,7 @@ pub(crate) enum RvProtocolValue {
 }
 
 impl TryFrom<u8> for RvProtocolValue {
-    type Error = eyre::Report;
+    type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let value = match value {
@@ -246,7 +247,7 @@ impl TryFrom<u8> for RvProtocolValue {
             4 => RvProtocolValue::Tls,
             5 => RvProtocolValue::CoapTcp,
             6 => RvProtocolValue::CoapUdp,
-            _ => bail!("value out of range: {value}"),
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for RVProtocolValue")),
         };
 
         Ok(value)
@@ -343,7 +344,7 @@ pub(crate) enum RvMediumValue {
 }
 
 impl TryFrom<u8> for RvMediumValue {
-    type Error = eyre::Report;
+    type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let value = match value {
@@ -369,7 +370,7 @@ impl TryFrom<u8> for RvMediumValue {
             19 => RvMediumValue::RvMedWifi9,
             20 => RvMediumValue::RvMedEthAll,
             21 => RvMediumValue::RvMedWifiAll,
-            _ => bail!("value out of range: {value}"),
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for RVMediumValue")),
         };
 
         Ok(value)

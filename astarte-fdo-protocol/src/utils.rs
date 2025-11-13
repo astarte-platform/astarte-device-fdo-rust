@@ -44,18 +44,19 @@ impl<'a, T> CborBstr<'a, T> {
     }
 
     /// Returns the encoded value as a CBOR byte string.
-    pub(crate) fn bytes(&self) -> eyre::Result<&Cow<'a, Bytes>>
+    pub(crate) fn bytes(&self) -> Result<&Cow<'a, Bytes>, ciborium::ser::Error<std::io::Error>>
     where
         T: Serialize,
     {
-        self.bytes
-            .get_or_try_init(|| -> eyre::Result<Cow<'a, Bytes>> {
+        self.bytes.get_or_try_init(
+            || -> Result<Cow<'a, Bytes>, ciborium::ser::Error<std::io::Error>> {
                 let mut buf = Vec::new();
 
                 ciborium::into_writer(&self.value, &mut buf)?;
 
                 Ok(Cow::Owned(buf.into()))
-            })
+            },
+        )
     }
 }
 

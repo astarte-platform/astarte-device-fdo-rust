@@ -16,14 +16,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) mod device_service_info;
-pub(crate) mod device_service_info_ready;
-pub(crate) mod done;
-pub(crate) mod get_ov_next_entry;
-pub(crate) mod hello_device;
-pub(crate) mod ov_next_entry;
-pub(crate) mod owner_service_info;
-pub(crate) mod owner_service_info_ready;
-pub(crate) mod prove_device;
-pub(crate) mod prove_ov_hdr;
-pub(crate) mod setup_device;
+pub mod device_service_info;
+pub mod device_service_info_ready;
+pub mod done;
+pub mod get_ov_next_entry;
+pub mod hello_device;
+pub mod ov_next_entry;
+pub mod owner_service_info;
+pub mod owner_service_info_ready;
+pub mod prove_device;
+pub mod prove_ov_hdr;
+pub mod setup_device;

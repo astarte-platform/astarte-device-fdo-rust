@@ -65,14 +65,14 @@ impl<'a> MfgInfo<'a> {
         csr: &'a [u8],
         serial_no: &'a str,
         model_no: &'a str,
-    ) -> eyre::Result<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             pk_type,
             pk_enc,
             serial_no: Cow::Borrowed(serial_no),
             model_no: Cow::Borrowed(model_no),
             cert_info: Cow::Borrowed(csr.into()),
-        })
+        }
     }
 }
 

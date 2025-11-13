@@ -28,12 +28,16 @@ rust-version.workspace = true
 [dependencies]
 ciborium.workspace = true
 coset = { workspace = true, features = ["std"] }
-eyre.workspace = true
 once_cell.workspace = true
 rustc-hash.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_bytes.workspace = true
+tracing = { workspace = true, optional = true }
 x509-parser.workspace = true
+
+[features]
+default = ["tracing"]
+tracing = ["dep:tracing"]
 
 [dev-dependencies]
 insta.workspace = true

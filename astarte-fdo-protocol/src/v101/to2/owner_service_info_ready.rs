@@ -16,10 +16,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use eyre::Context;
+use std::io::Write;
+
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::v101::{Message, Msgtype};
+use crate::Error;
 
 /// ```cddl
 /// TO2.OwnerServiceInfoReady  = [
@@ -60,15 +63,24 @@ impl<'de> Deserialize<'de> for OwnerServiceInfoReady {
 impl Message for OwnerServiceInfoReady {
     const MSG_TYPE: Msgtype = 67;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        ciborium::from_reader(buf).wrap_err("couldn't decode TO2.OwnerServiceInfoReady")
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        ciborium::from_reader(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.OwnerServiceInfoReady");
+
+            Error::new(ErrorKind::Decode, "the TO2.OwnerServiceInfoReady")
+        })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let mut buf = Vec::new();
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        ciborium::into_writer(self, write).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't encode TO2.OwnerServiceInfoReady");
 
-        ciborium::into_writer(self, &mut buf)?;
-
-        Ok(buf)
+            Error::new(ErrorKind::Encode, "the TO2.OwnerServiceInfoReady")
+        })
     }
 }

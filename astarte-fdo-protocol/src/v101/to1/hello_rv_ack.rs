@@ -16,10 +16,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::Write;
+
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::v101::sign_info::EBSigInfo;
 use crate::v101::{Message, Msgtype, NonceTo1Proof};
+use crate::Error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct HelloRvAck<'a> {
@@ -58,16 +62,24 @@ impl<'de> Deserialize<'de> for HelloRvAck<'_> {
 impl Message for HelloRvAck<'_> {
     const MSG_TYPE: Msgtype = 31;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        let this = ciborium::from_reader(buf)?;
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        ciborium::from_reader(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO1.HelloRvAck");
 
-        Ok(this)
+            Error::new(ErrorKind::Decode, "the TO1.HelloRvAck")
+        })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let mut buf = Vec::new();
-        ciborium::into_writer(self, &mut buf)?;
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        ciborium::into_writer(self, write).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't encode TO1.HelloRvAck");
 
-        Ok(buf)
+            Error::new(ErrorKind::Encode, "the TO1.HelloRvAck")
+        })
     }
 }

@@ -18,9 +18,11 @@
 
 use std::borrow::Cow;
 
-use eyre::{ensure, Context, OptionExt};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
+
+use crate::error::ErrorKind;
+use crate::Error;
 
 fn parse_len_prefixed_slice(bytes: &[u8]) -> Option<(&[u8], &[u8])> {
     let (blen, rest) = bytes.split_first_chunk::<2>()?;
@@ -46,23 +48,57 @@ fn parse_len_prefixed_slice(bytes: &[u8]) -> Option<(&[u8], &[u8])> {
 pub(crate) struct XAKeyExchange<'a>(Cow<'a, Bytes>);
 
 impl<'a> XAKeyExchange<'a> {
-    pub(crate) fn parse_ecdh(&self) -> eyre::Result<(&[u8], &[u8], &[u8])> {
+    pub(crate) fn parse_ecdh(&self) -> Result<EcdhParams<'_>, crate::Error> {
         let rest = self.as_ref();
 
-        let (ax, rest) = parse_len_prefixed_slice(rest).ok_or_eyre("couldn't parse Ax")?;
-        let (ay, rest) = parse_len_prefixed_slice(rest).ok_or_eyre("couldn't parse Ay")?;
-        let (owner_rand, rest) =
-            parse_len_prefixed_slice(rest).ok_or_eyre("couldn't parse Owner Random")?;
+        let (x, rest) = parse_len_prefixed_slice(rest).ok_or(Error::new(
+            ErrorKind::Invalid,
+            "for len prefixed slice XAKeyExchange",
+        ))?;
+        let (y, rest) = parse_len_prefixed_slice(rest).ok_or(Error::new(
+            ErrorKind::Invalid,
+            "for len prefixed slice XAKeyExchange",
+        ))?;
+        let (rand, rest) = parse_len_prefixed_slice(rest).ok_or(Error::new(
+            ErrorKind::Invalid,
+            "for len prefixed slice XAKeyExchange",
+        ))?;
 
-        ensure!(rest.is_empty(), "remaining bytes in input");
+        if !rest.is_empty() {
+            return Err(Error::new(
+                ErrorKind::Invalid,
+                "for remaining bytes in XAKeyExchange",
+            ));
+        }
 
-        Ok((ax, ay, owner_rand))
+        Ok(EcdhParams { x, y, rand })
     }
 }
 
 impl AsRef<[u8]> for XAKeyExchange<'_> {
     fn as_ref(&self) -> &[u8] {
         &self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EcdhParams<'a> {
+    x: &'a [u8],
+    y: &'a [u8],
+    rand: &'a [u8],
+}
+
+impl<'a> EcdhParams<'a> {
+    pub fn x(&self) -> &'a [u8] {
+        self.x
+    }
+
+    pub fn y(&self) -> &'a [u8] {
+        self.y
+    }
+
+    pub fn rand(&self) -> &'a [u8] {
+        self.rand
     }
 }
 
@@ -79,19 +115,22 @@ impl AsRef<[u8]> for XAKeyExchange<'_> {
 pub(crate) struct XBKeyExchange<'a>(pub(crate) Cow<'a, Bytes>);
 
 impl XBKeyExchange<'static> {
-    pub(crate) fn create(bx: &[u8], by: &[u8], dv_rand: &[u8]) -> eyre::Result<Self> {
+    pub(crate) fn create(params: EcdhParams) -> Result<Self, Error> {
         let mut buf = Vec::new();
 
-        let bx_len = u16::try_from(bx.len()).wrap_err("bx len too big")?;
-        let by_len = u16::try_from(by.len()).wrap_err("by len too big")?;
-        let dv_rand_len = u16::try_from(dv_rand.len()).wrap_err("dv_rand len too big")?;
+        let bx_len = u16::try_from(params.x.len())
+            .map_err(|_| Error::new(ErrorKind::OutOfRange, "bx len too big"))?;
+        let by_len = u16::try_from(params.y.len())
+            .map_err(|_| Error::new(ErrorKind::OutOfRange, "by len too big"))?;
+        let dv_rand_len = u16::try_from(params.rand.len())
+            .map_err(|_| Error::new(ErrorKind::OutOfRange, "rand len too big"))?;
 
         buf.extend_from_slice(&bx_len.to_be_bytes());
-        buf.extend_from_slice(bx);
+        buf.extend_from_slice(params.x);
         buf.extend_from_slice(&by_len.to_be_bytes());
-        buf.extend_from_slice(by);
+        buf.extend_from_slice(params.y);
         buf.extend_from_slice(&dv_rand_len.to_be_bytes());
-        buf.extend_from_slice(dv_rand);
+        buf.extend_from_slice(params.rand);
 
         Ok(Self(Cow::Owned(buf.into())))
     }

@@ -16,7 +16,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) mod hello_rv;
-pub(crate) mod hello_rv_ack;
-pub(crate) mod prove_to_rv;
-pub(crate) mod rv_redirect;
+pub mod hello_rv;
+pub mod hello_rv_ack;
+pub mod prove_to_rv;
+pub mod rv_redirect;

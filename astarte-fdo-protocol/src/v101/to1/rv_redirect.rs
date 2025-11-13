@@ -16,13 +16,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::Write;
+
 use coset::{CoseSign1, TaggedCborSerializable};
-use eyre::{ensure, OptionExt};
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::v101::hash_hmac::Hash;
 use crate::v101::rv_to2_addr::RvTo2Addr;
 use crate::v101::{Message, Msgtype};
+use crate::Error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct RvRedirect {
@@ -30,10 +33,18 @@ pub(crate) struct RvRedirect {
 }
 
 impl RvRedirect {
-    pub(crate) fn rv_to2_addr(&self) -> eyre::Result<To1dBlob<'_>> {
-        let payload = self.to1d.payload.as_ref().ok_or_eyre("payload missing")?;
+    pub(crate) fn rv_to2_addr(&self) -> Result<To1dBlob<'_>, Error> {
+        let payload = self.to1d.payload.as_deref().ok_or(Error::new(
+            ErrorKind::Invalid,
+            "RvRedirect payload is missing",
+        ))?;
 
-        let rv_addr = ciborium::from_reader(payload.as_slice())?;
+        let rv_addr = ciborium::from_reader(payload).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode RvRedirect payload");
+
+            Error::new(ErrorKind::Decode, "the RvRedirect payload")
+        })?;
 
         Ok(rv_addr)
     }
@@ -42,18 +53,45 @@ impl RvRedirect {
 impl Message for RvRedirect {
     const MSG_TYPE: Msgtype = 33;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        let to1d = CoseSign1::from_tagged_slice(buf)?;
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        let to1d = CoseSign1::from_tagged_slice(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode RvRedirect");
 
-        ensure!(to1d.payload.is_some(), "to1d payload missing");
+            Error::new(ErrorKind::Decode, "the RvRedirect")
+        })?;
+
+        if to1d.payload.is_none() {
+            return Err(Error::new(
+                ErrorKind::Invalid,
+                "the RvRedirect payload is missing",
+            ));
+        }
 
         Ok(Self { to1d })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let buf = self.to1d.clone().to_tagged_vec()?;
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        self.to1d
+            .clone()
+            .to_tagged_vec()
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't encode RvRedirect");
 
-        Ok(buf)
+                Error::new(ErrorKind::Encode, "the RvRedirect")
+            })
+            .and_then(|buf| {
+                write.write_all(&buf).map_err(|err| {
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(error = %err, "couldn't write RvRedirect");
+
+                    Error::new(ErrorKind::Write, "the RvRedirect")
+                })
+            })
     }
 }
 

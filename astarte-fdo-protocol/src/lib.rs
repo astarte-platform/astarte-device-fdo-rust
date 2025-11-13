@@ -26,4 +26,7 @@
 pub use v101 as latest;
 pub mod v101;
 
+pub mod error;
 pub mod utils;
+
+pub use self::error::Error;

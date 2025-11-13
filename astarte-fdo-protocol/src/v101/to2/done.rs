@@ -16,10 +16,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use eyre::Context;
+use std::io::Write;
+
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::v101::{ClientMessage, Message, Msgtype, NonceTo2ProveDv, NonceTo2SetupDv};
+use crate::Error;
 
 /// ```cddl
 /// TO2.Done = [
@@ -56,16 +59,25 @@ impl<'de> Deserialize<'de> for Done {
 impl Message for Done {
     const MSG_TYPE: Msgtype = 70;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        ciborium::from_reader(buf).wrap_err("couldn't decode TO2.Done")
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        ciborium::from_reader(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.Done");
+
+            Error::new(ErrorKind::Decode, "the TO2.Done")
+        })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let mut buf = Vec::new();
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        ciborium::into_writer(self, write).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't encode TO2.Done");
 
-        ciborium::into_writer(self, &mut buf)?;
-
-        Ok(buf)
+            Error::new(ErrorKind::Encode, "the TO2.Done")
+        })
     }
 }
 
@@ -108,15 +120,24 @@ impl<'de> Deserialize<'de> for Done2 {
 impl Message for Done2 {
     const MSG_TYPE: Msgtype = 71;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        ciborium::from_reader(buf).wrap_err("couldn't decode TO2.Done")
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        ciborium::from_reader(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.Done2");
+
+            Error::new(ErrorKind::Decode, "the TO2.Done")
+        })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let mut buf = Vec::new();
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        ciborium::into_writer(self, write).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't encode TO2.Done2");
 
-        ciborium::into_writer(self, &mut buf)?;
-
-        Ok(buf)
+            Error::new(ErrorKind::Encode, "the TO2.Done")
+        })
     }
 }

@@ -16,11 +16,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use coset::TaggedCborSerializable;
-use eyre::Context;
+use std::io::Write;
 
+use coset::TaggedCborSerializable;
+
+use crate::error::ErrorKind;
 use crate::v101::eat_signature::EaToken;
 use crate::v101::{ClientMessage, Message, Msgtype};
+use crate::Error;
 
 use super::setup_device::SetupDevice;
 
@@ -40,24 +43,45 @@ use super::setup_device::SetupDevice;
 /// )
 /// ```
 #[derive(Debug)]
-pub(crate) struct ProveDevice {
+pub struct ProveDevice {
     pub(crate) sign: EaToken,
 }
 
 impl Message for ProveDevice {
     const MSG_TYPE: Msgtype = 64;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
         EaToken::from_tagged_slice(buf)
             .map(|sign| ProveDevice { sign })
-            .wrap_err("couldn't decode prove device EAToken")
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't decode TO2.ProveDevice");
+
+                Error::new(ErrorKind::Decode, "couldn't decode TO2.ProveDevice")
+            })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
+    fn encode<W>(&self, writer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
         self.sign
             .clone()
             .to_tagged_vec()
-            .wrap_err("couldn't encode prove device EAToken")
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't encode TO2.ProveDevice");
+
+                Error::new(ErrorKind::Encode, "couldn't encode TO2.ProveDevice")
+            })
+            .and_then(|v| {
+                writer.write_all(v.as_slice()).map_err(|err| {
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(error = %err, "couldn't write TO2.ProveDevice");
+
+                    Error::new(ErrorKind::Write, "couldn't write TO2.ProveDevice")
+                })
+            })
     }
 }
 

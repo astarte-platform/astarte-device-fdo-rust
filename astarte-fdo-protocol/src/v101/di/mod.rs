@@ -16,8 +16,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) mod app_start;
-pub(crate) mod custom;
-pub(crate) mod done;
-pub(crate) mod set_credentials;
-pub(crate) mod set_hmac;
+pub mod app_start;
+pub mod custom;
+pub mod done;
+pub mod set_credentials;
+pub mod set_hmac;

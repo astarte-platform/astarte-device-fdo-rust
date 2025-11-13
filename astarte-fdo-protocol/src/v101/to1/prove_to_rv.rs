@@ -16,9 +16,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::Write;
+
 use coset::{CoseSign1, TaggedCborSerializable};
 
+use crate::error::ErrorKind;
 use crate::v101::{ClientMessage, Message, Msgtype};
+use crate::Error;
 
 use super::rv_redirect::RvRedirect;
 
@@ -30,18 +34,40 @@ pub(crate) struct ProveToRv {
 impl Message for ProveToRv {
     const MSG_TYPE: Msgtype = 32;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        let ea_token = CoseSign1::from_tagged_slice(buf)?;
-
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
         // TODO: probably some validation is required here
-        Ok(Self { ea_token })
+        CoseSign1::from_tagged_slice(buf)
+            .map(|ea_token| Self { ea_token })
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't decode TO1.ProveToRv");
+
+                Error::new(ErrorKind::Decode, "the TO1.ProveToRv")
+            })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        // coset requires allocations
-        let buf = self.ea_token.clone().to_tagged_vec()?;
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        // TODO: coset requires allocations
+        self.ea_token
+            .clone()
+            .to_tagged_vec()
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't encode TO1.ProveToRv");
 
-        Ok(buf)
+                Error::new(ErrorKind::Encode, "the TO1.ProveToRv")
+            })
+            .and_then(|buf| {
+                write.write_all(&buf).map_err(|err| {
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(error = %err, "couldn't write TO1.ProveToRv");
+
+                    Error::new(ErrorKind::Write, "the TO1.ProveToRv")
+                })
+            })
     }
 }
 

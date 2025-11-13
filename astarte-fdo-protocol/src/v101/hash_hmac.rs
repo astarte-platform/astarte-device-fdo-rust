@@ -19,11 +19,12 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
 
-use eyre::bail;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
+use crate::error::ErrorKind;
 use crate::utils::Hex;
+use crate::Error;
 
 /// Crypto hash
 ///
@@ -121,7 +122,7 @@ impl Hashtype {
 }
 
 impl TryFrom<i8> for Hashtype {
-    type Error = eyre::Report;
+    type Error = Error;
 
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         let value = match value {
@@ -129,7 +130,7 @@ impl TryFrom<i8> for Hashtype {
             -43 => Hashtype::Sha384,
             5 => Hashtype::HmacSha256,
             6 => Hashtype::HmacSha384,
-            _ => bail!("value out of range: {value}"),
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for HashType")),
         };
 
         Ok(value)

@@ -18,9 +18,11 @@
 
 use std::borrow::Cow;
 
-use eyre::bail;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
+
+use crate::error::ErrorKind;
+use crate::Error;
 
 /// ```cddl
 /// SigInfo = [
@@ -105,7 +107,7 @@ pub(crate) enum DeviceSgType {
 }
 
 impl TryFrom<i64> for DeviceSgType {
-    type Error = eyre::Report;
+    type Error = Error;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
         let value = match value {
@@ -115,7 +117,7 @@ impl TryFrom<i64> for DeviceSgType {
             -258 => DeviceSgType::StRSA3072,
             90 => DeviceSgType::StEpid10,
             91 => DeviceSgType::StEpid11,
-            _ => bail!("value out of range: {value}"),
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for DeviceSgType")),
         };
 
         Ok(value)

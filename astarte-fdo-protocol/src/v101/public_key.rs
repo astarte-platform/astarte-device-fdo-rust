@@ -21,10 +21,12 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use coset::{AsCborValue, CoseKey};
-use eyre::bail;
 use serde::de::Visitor;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
+
+use crate::error::ErrorKind;
+use crate::Error;
 
 use super::x509::CoseX509;
 
@@ -204,7 +206,7 @@ pub(crate) enum PkType {
 }
 
 impl TryFrom<u8> for PkType {
-    type Error = eyre::Report;
+    type Error = crate::Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let value = match value {
@@ -213,7 +215,7 @@ impl TryFrom<u8> for PkType {
             6 => PkType::RsaPss,
             10 => PkType::Secp256R1,
             11 => PkType::Secp384R1,
-            _ => bail!("value out of range: {value}"),
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for PkType")),
         };
 
         Ok(value)
@@ -251,7 +253,7 @@ pub(crate) enum PkEnc {
 }
 
 impl TryFrom<u8> for PkEnc {
-    type Error = eyre::Report;
+    type Error = crate::Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let value = match value {
@@ -259,7 +261,7 @@ impl TryFrom<u8> for PkEnc {
             1 => PkEnc::X509,
             2 => PkEnc::X5Chain,
             3 => PkEnc::CoseKey,
-            _ => bail!("value out of range: {value}"),
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for PkEnc")),
         };
 
         Ok(value)

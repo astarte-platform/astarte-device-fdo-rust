@@ -25,55 +25,72 @@ use std::fmt::{Debug, Display};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::ops::Deref;
 
-use eyre::bail;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteArray;
 
+use crate::error::ErrorKind;
+use crate::Error;
+
 use super::utils::Hex;
 
-pub(crate) mod device_credentials;
-pub(crate) mod eat_signature;
+pub mod device_credentials;
+pub mod eat_signature;
 pub mod error;
-pub(crate) mod hash_hmac;
-pub(crate) mod key_exchange;
-pub(crate) mod ownership_voucher;
-pub(crate) mod public_key;
-pub(crate) mod randezvous_info;
-pub(crate) mod rv_to2_addr;
-pub(crate) mod service_info;
-pub(crate) mod sign_info;
-pub(crate) mod x509;
+pub mod hash_hmac;
+pub mod key_exchange;
+pub mod ownership_voucher;
+pub mod public_key;
+pub mod randezvous_info;
+pub mod rv_to2_addr;
+pub mod service_info;
+pub mod sign_info;
+pub mod x509;
 
-pub(crate) mod di;
-pub(crate) mod to1;
-pub(crate) mod to2;
-
-// Type names used in the specification
-pub(crate) type Protver = u16;
-pub(crate) type Msglen = u16;
-pub(crate) type Msgtype = u16;
+pub mod di;
+pub mod to1;
+pub mod to2;
 
 pub(crate) const PROTOCOL_VERSION_MAJOR: Protver = 1;
 pub(crate) const PROTOCOL_VERSION_MINOR: Protver = 1;
 pub(crate) const PROTOCOL_VERSION: Protver = PROTOCOL_VERSION_MAJOR * 100 + PROTOCOL_VERSION_MINOR;
 
-pub(crate) trait Message: Sized {
+/// Protocol version: the version of the transmitted ("wire") protocol
+pub type Protver = u16;
+/// Length of the CBOR data in the message.
+pub type Msglen = u16;
+/// A message type, which acts to identify the message body.
+pub type Msgtype = u16;
+
+/// Serialize and deserialize a message.
+pub trait Message: Sized {
+    /// A message type, which acts to identify the message body.
     const MSG_TYPE: Msgtype;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self>;
+    /// Decodes a message from a buffer.
+    fn decode(buf: &[u8]) -> Result<Self, crate::Error>;
 
-    fn encode(&self) -> eyre::Result<Vec<u8>>;
+    /// Encode a message into the writer using the provided puffer for support.
+    ///
+    /// The buffer should have a size that is lower than the MTU of the protocol.
+    ///
+    /// For example if the MTU is 1400 we sill use a buffer of 1300 bytes to have space for the
+    /// protocol headers.
+    fn encode<W>(&self, writer: &mut W) -> Result<(), crate::Error>
+    where
+        // TODO: use embedded-io
+        W: std::io::Write;
 }
 
 /// Message sent from the device to the server
-pub(crate) trait ClientMessage: Message {
+pub trait ClientMessage: Message {
+    /// Response to this message.
     type Response<'a>: Message;
 }
 
 /// Initial message in a protocol (DI, TO1, or TO2).
 ///
 /// This message doesn't require authentication.
-pub(crate) trait InitialMessage: ClientMessage {}
+pub trait InitialMessage: ClientMessage {}
 
 /// Guid is implemented as a 128-bit cryptographically strong random number.
 ///
@@ -83,7 +100,7 @@ pub(crate) trait InitialMessage: ClientMessage {}
 /// Guid = bstr .size 16
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub(crate) struct Guid(ByteArray<16>);
+pub struct Guid(ByteArray<16>);
 
 impl Deref for Guid {
     type Target = ByteArray<16>;
@@ -112,8 +129,10 @@ impl Display for Guid {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum IpAddress {
+pub enum IpAddress {
+    /// IP version 4
     Ipv4(Ipv4),
+    /// IP version 6
     Ipv6(Ip6),
 }
 
@@ -137,17 +156,17 @@ impl From<IpAddress> for IpAddr {
 /// ```cddl
 /// ip4 = bstr .size 4
 /// ```
-pub(crate) type Ipv4 = ByteArray<4>;
+pub type Ipv4 = ByteArray<4>;
 
 /// ```cddl
 /// ip6 = bstr .size 16
 /// ```
-pub(crate) type Ip6 = ByteArray<16>;
+pub type Ip6 = ByteArray<16>;
 
 /// ```cddl
 /// DNSAddress = tstr
 /// ```
-pub(crate) type DnsAddress<'a> = Cow<'a, str>;
+pub type DnsAddress<'a> = Cow<'a, str>;
 
 /// ```cddl
 /// Port = uint16
@@ -167,16 +186,22 @@ pub(crate) type Port = u16;
 #[serde(try_from = "u8", into = "u8")]
 #[repr(u8)]
 pub enum TransportProtocol {
+    /// TCP stream
     Tcp = 1,
+    /// TLS stream
     Tls = 2,
+    /// HTTP messages
     Http = 3,
+    /// CoAP messages
     CoAp = 4,
+    /// HTTPS messages
     Https = 5,
+    /// CoAPS messages
     CoAps = 6,
 }
 
 impl TryFrom<u8> for TransportProtocol {
-    type Error = eyre::Report;
+    type Error = crate::Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let value = match value {
@@ -186,7 +211,7 @@ impl TryFrom<u8> for TransportProtocol {
             4 => TransportProtocol::Https,
             5 => TransportProtocol::CoAp,
             6 => TransportProtocol::CoAps,
-            _ => bail!("value out of range: {value}"),
+            _ => return Err(Error::new(ErrorKind::OutOfRange, "for TransportProtocol")),
         };
 
         Ok(value)

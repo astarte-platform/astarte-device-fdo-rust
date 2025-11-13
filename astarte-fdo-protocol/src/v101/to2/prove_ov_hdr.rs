@@ -16,11 +16,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::Write;
+
 use coset::iana::{EnumI64, HeaderParameter};
 use coset::{CoseSign1, Label, TaggedCborSerializable};
-use eyre::{ensure, Context, OptionExt};
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::utils::CborBstr;
 use crate::v101::hash_hmac::{HMac, Hash};
 use crate::v101::key_exchange::XAKeyExchange;
@@ -28,6 +30,7 @@ use crate::v101::ownership_voucher::OvHeader;
 use crate::v101::public_key::PublicKey;
 use crate::v101::sign_info::EBSigInfo;
 use crate::v101::{Message, Msgtype, NonceTo2ProveDv, NonceTo2ProveOv};
+use crate::Error;
 
 /// ```cddl
 /// TO2.ProveOVHdr = CoseSignature
@@ -38,44 +41,63 @@ pub(crate) struct ProveOvHdr {
 }
 
 impl ProveOvHdr {
-    pub(crate) fn payload(&self) -> eyre::Result<PvOvHdrPayload<'static>> {
-        let payload = self
-            .sign
-            .payload
-            .as_deref()
-            .ok_or_eyre("missing cose payload")?;
+    pub(crate) fn payload(&self) -> Result<PvOvHdrPayload<'static>, Error> {
+        let payload = self.sign.payload.as_deref().ok_or(Error::new(
+            ErrorKind::Invalid,
+            "the TO2.ProveOvHdr payload is missing",
+        ))?;
 
-        ciborium::from_reader(payload).wrap_err("couldn't decode prove owner header payload")
+        ciborium::from_reader(payload).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.ProveOvHdr payload");
+
+            Error::new(ErrorKind::Decode, "the TO2.ProveOvHdr payload")
+        })
     }
 
-    pub(crate) fn header(&self) -> eyre::Result<PvOvHdrUnprotected<'static>> {
+    pub(crate) fn header(&self) -> Result<PvOvHdrUnprotected<'static>, Error> {
         let pubkey_param = Label::Int(HeaderParameter::CuphOwnerPubKey.to_i64());
 
-        let payload = self
+        let pubkey = self
             .sign
             .unprotected
             .rest
             .iter()
             .find_map(|(label, value)| (*label == pubkey_param).then_some(value))
-            .ok_or_eyre("missing owner public key")?;
+            .ok_or(Error::new(
+                ErrorKind::Invalid,
+                "the TO2.ProveOvHdr owner public key is missing",
+            ))?;
 
-        let pubkey = payload
-            .deserialized()
-            .wrap_err("couldn't decode header owner public key")?;
+        let pubkey = pubkey.deserialized().map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.ProveOvHdr owner public key header ");
+
+            Error::new(
+                ErrorKind::Decode,
+                "the TO2.ProveOvHdr header owner public key",
+            )
+        })?;
 
         let nonce_param = Label::Int(HeaderParameter::CuphNonce.to_i64());
 
-        let payload = self
+        let nonce = self
             .sign
             .unprotected
             .rest
             .iter()
             .find_map(|(label, value)| (*label == nonce_param).then_some(value))
-            .ok_or_eyre("missing owner public key")?;
+            .ok_or(Error::new(
+                ErrorKind::Invalid,
+                "the TO2.ProveOvHdr nonce is missing",
+            ))?;
 
-        let nonce = payload
-            .deserialized()
-            .wrap_err("couldn't decode header nonce")?;
+        let nonce = nonce.deserialized().map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.ProveOvHdr nonce header ");
+
+            Error::new(ErrorKind::Decode, "the TO2.ProveOvHdr nonce header")
+        })?;
 
         Ok(PvOvHdrUnprotected {
             cuph_nonce: nonce,
@@ -87,18 +109,45 @@ impl ProveOvHdr {
 impl Message for ProveOvHdr {
     const MSG_TYPE: Msgtype = 61;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        let sign = CoseSign1::from_tagged_slice(buf)?;
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        let sign = CoseSign1::from_tagged_slice(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode TO2.ProveOvHdr");
 
-        ensure!(sign.payload.is_some(), "missing payload");
+            Error::new(ErrorKind::Decode, "the TO2.ProveOvHdr")
+        })?;
+
+        if sign.payload.is_none() {
+            return Err(Error::new(
+                ErrorKind::Invalid,
+                "the TO2.ProveOvHdr payload is missing",
+            ));
+        }
 
         Ok(Self { sign })
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let buf = self.sign.clone().to_tagged_vec()?;
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        self.sign
+            .clone()
+            .to_tagged_vec()
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't encode TO2.ProveOvHdr");
 
-        Ok(buf)
+                Error::new(ErrorKind::Encode, "the TO2.ProveOvHdr")
+            })
+            .and_then(|buf| {
+                write.write_all(&buf).map_err(|err| {
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(error = %err, "couldn't write TO2.ProveOvHdr");
+
+                    Error::new(ErrorKind::Write, "the TO2.ProveOvHdr")
+                })
+            })
     }
 }
 

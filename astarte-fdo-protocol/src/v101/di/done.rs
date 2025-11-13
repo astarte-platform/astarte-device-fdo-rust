@@ -16,9 +16,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::Write;
+
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorKind;
 use crate::v101::{Message, Msgtype};
+use crate::Error;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Done;
@@ -50,16 +54,26 @@ impl<'de> Deserialize<'de> for Done {
 impl Message for Done {
     const MSG_TYPE: Msgtype = 13;
 
-    fn decode(buf: &[u8]) -> eyre::Result<Self> {
-        let this = ciborium::from_reader(buf)?;
+    fn decode(buf: &[u8]) -> Result<Self, Error> {
+        let this = ciborium::from_reader(buf).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode DI.Done");
+
+            Error::new(ErrorKind::Decode, "the DI.Done")
+        })?;
 
         Ok(this)
     }
 
-    fn encode(&self) -> eyre::Result<Vec<u8>> {
-        let mut buf = Vec::new();
-        ciborium::into_writer(self, &mut buf)?;
+    fn encode<W>(&self, write: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        ciborium::into_writer(self, write).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't encode DI.Done");
 
-        Ok(buf)
+            Error::new(ErrorKind::Encode, "the DI.Done")
+        })
     }
 }
