@@ -1,0 +1,9 @@
+---
+source: astarte-fdo-protocol/src/utils.rs
+expression: buf
+---
+[
+    129,
+    24,
+    42,
+]

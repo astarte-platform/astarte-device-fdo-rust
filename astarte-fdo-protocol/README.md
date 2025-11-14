@@ -18,6 +18,7 @@ limitations under the License.
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# astarte-device-fdo-rust
+# astarte-fdo-protocol
 
-astarte-device-fdo-rust
+Implementation of the serialization and deserialization of messages for the Fido Device On-boarding
+(FDO) protocol.
