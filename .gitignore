@@ -16,8 +16,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+.envrc.private
 .pre-commit-config.yaml
 .tmp/
 target/
-.tmp/
-.envrc.private
