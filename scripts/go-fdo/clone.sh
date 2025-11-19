@@ -1,27 +1,40 @@
 #!/usr/bin/env bash
 
+# This file is part of Astarte.
+#
+# Copyright 2025 SECO Mind Srl
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 set -exEuo pipefail
 
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-dir=.tmp/repos/
+mkdir -p "$REPOS"
 
-mkdir -p "$dir"
+git=$1
+name=$2
+ref=$3
 
-if [ ! -d .tmp/go-fdo-server/ ]; then
-    git clone https://github.com/fido-device-onboard/go-fdo-server.git "$dir/go-fdo-server"
+if [ ! -d "$REPOS/$name" ]; then
+    git clone "$git" "$REPOS/$name"
 fi
-if [ ! -d .tmp/go-fdo-client/ ]; then
-    git clone https://github.com/fido-device-onboard/go-fdo-client.git "$dir/go-fdo-client"
-fi
 
-pushd "$dir/go-fdo-server/"
+pushd "$REPOS/$name"
 git fetch
-git checkout 01a7aa7be9f58f17ad40242380e3e92b169bc307
-popd
-
-pushd "$dir/go-fdo-client/"
-git fetch
-git checkout 21cb545547f06f77cba3aad2aa45fc1d1eeee781
+# Random pinned commit
+git switch --detach "$ref"
 popd
