@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
+// TODO: remove
+#![allow(dead_code)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+//! FIDO Device Onboarding protocol implementation
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod client;
+pub mod crypto;
+pub mod storage;

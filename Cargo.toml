@@ -1,6 +1,6 @@
 # This file is part of Astarte.
 #
-# Copyright 2025 SECO Mind Srl
+# Copyright 2025, 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,15 +33,23 @@ repository = "https://github.com/astarte-platform/astarte-device-fdo-rust"
 rust-version = "1.78.0"
 
 [workspace.dependencies]
+astarte-fdo-protocol = { version = "0.1.0", path = "./astarte-fdo-protocol" }
+aws-lc-rs = "1.14.1"
 ciborium = "0.2.2"
 coset = "0.4.0"
 eyre = "0.6.12"
+nix = "0.30.1"
 once_cell = "1.21.3"
+rcgen = { version = "0.14.5", default-features = false }
+reqwest = { version = "0.12.24", default-features = false }
 rustc-hash = "2.1.1"
 serde = "1.0.228"
 serde_bytes = "0.11.19"
+tokio = { version = "1.48.0", default-features = false }
 tracing = "0.1.41"
+url = "2.5.7"
 x509-parser = "0.18.0"
+zeroize = "1.8.2"
 
 # Dev
 insta = "1.43.2"
