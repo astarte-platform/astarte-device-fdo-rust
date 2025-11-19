@@ -16,17 +16,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+//! FIDO Device Onboarding protocol implementation
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+mod client;
+mod crypto;
+mod storage;
