@@ -25,3 +25,11 @@
 pub mod client;
 pub mod crypto;
 pub mod storage;
+
+pub mod di;
+
+#[derive(Debug)]
+struct Ctx<'a, C, S> {
+    crypto: &'a mut C,
+    storage: &'a mut S,
+}
