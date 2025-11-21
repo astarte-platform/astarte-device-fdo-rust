@@ -1,0 +1,5 @@
+---
+source: astarte-fdo-protocol/src/v101/randezvous_info.rs
+expression: case
+---
+RVWifiPw(10)

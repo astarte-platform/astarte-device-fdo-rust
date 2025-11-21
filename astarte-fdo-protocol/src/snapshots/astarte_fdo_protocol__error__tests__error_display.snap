@@ -1,0 +1,5 @@
+---
+source: astarte-fdo-protocol/src/error.rs
+expression: error
+---
+couldn't encode the message
