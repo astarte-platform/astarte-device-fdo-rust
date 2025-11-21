@@ -59,19 +59,20 @@ pub struct MfgInfo<'a> {
 }
 
 impl<'a> MfgInfo<'a> {
+    /// Returns a new MfgInfo
     pub fn new(
         pk_type: PkType,
         pk_enc: PkEnc,
-        csr: &'a [u8],
-        serial_no: &'a str,
-        model_no: &'a str,
+        cert_info: Cow<'a, Bytes>,
+        serial_no: Cow<'a, str>,
+        model_no: Cow<'a, str>,
     ) -> Self {
         Self {
             pk_type,
             pk_enc,
-            serial_no: Cow::Borrowed(serial_no),
-            model_no: Cow::Borrowed(model_no),
-            cert_info: Cow::Borrowed(csr.into()),
+            serial_no,
+            model_no,
+            cert_info,
         }
     }
 }

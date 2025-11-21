@@ -33,10 +33,10 @@ use astarte_fdo_protocol::v101::sign_info::DeviceSgType;
 use astarte_fdo_protocol::v101::Nonce;
 
 pub(crate) mod kdf;
-pub(crate) mod software;
+pub mod software;
 
 // TODO: this can be simplified, encryption can be done by aws_lc_rs in most cases.
-pub(crate) trait Crypto {
+pub trait Crypto {
     /// Public key encoding
     const PK_ENC: PkEnc;
 

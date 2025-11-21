@@ -36,14 +36,17 @@ use crate::crypto::Crypto;
 const MIME: HeaderValue = HeaderValue::from_static("application/cbor");
 const MESSAGE_TYPE: HeaderName = HeaderName::from_static("message-type");
 
+/// The client needs authentication
 #[derive(Debug)]
-pub(crate) struct NeedsAuth {}
+pub struct NeedsAuth {}
 
+/// The client needs encryption
 #[derive(Debug)]
-pub(crate) struct NeedsEncryption {}
+pub struct NeedsEncryption {}
 
+/// Http FDO client
 #[derive(Debug)]
-pub(crate) struct Client<A = HeaderValue, E = NeedsEncryption> {
+pub struct Client<A = HeaderValue, E = NeedsEncryption> {
     auth: A,
     base_url: Url,
     protocol_version: Protver,
@@ -209,7 +212,8 @@ impl<A, E> Client<A, E> {
 }
 
 impl Client<NeedsAuth, NeedsEncryption> {
-    pub(crate) fn new(base_url: Url) -> Result<Self, Error> {
+    /// Create from a base_url
+    pub fn create(base_url: Url) -> Result<Self, Error> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, MIME);
 

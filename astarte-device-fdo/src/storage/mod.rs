@@ -27,7 +27,8 @@ use tokio::io::AsyncWriteExt;
 use tracing::{error, instrument};
 use zeroize::Zeroizing;
 
-pub(crate) trait Storage: Send + Sync {
+/// Stores the information used for the protocol
+pub trait Storage: Send + Sync {
     /// Writes the file and marks it as immutable.
     fn write_immutable(
         &self,
@@ -60,13 +61,15 @@ pub(crate) trait Storage: Send + Sync {
     fn exists(&self, file: &str) -> impl Future<Output = Result<bool, Error>> + Send;
 }
 
+/// File storage to use for the protocol
 #[derive(Debug, Clone)]
-pub(crate) struct FileStorage {
+pub struct FileStorage {
     dir: PathBuf,
 }
 
 impl FileStorage {
-    pub(crate) async fn open(dir: PathBuf) -> io::Result<Self> {
+    /// Opens the directory to use as file storage
+    pub async fn open(dir: PathBuf) -> io::Result<Self> {
         let mut builder = DirBuilder::new();
         builder.recursive(true).mode(0o700);
 
