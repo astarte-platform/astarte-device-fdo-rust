@@ -46,3 +46,4 @@ x509-parser = "0.18.0"
 # Dev
 insta = "1.43.2"
 pretty_assertions = "1.4.1"
+tracing-subscriber = "0.3.20"

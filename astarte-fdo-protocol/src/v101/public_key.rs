@@ -51,6 +51,11 @@ impl<'a> PublicKey<'a> {
     pub fn key(&self) -> Option<&[u8]> {
         self.pk_body.key()
     }
+
+    /// Returns the [`PkType`]
+    pub fn pk_type(&self) -> PkType {
+        self.pk_type
+    }
 }
 
 impl Debug for PublicKey<'_> {
@@ -349,22 +354,27 @@ pub(crate) mod tests {
         include_bytes!("../../../assets/examples/rsa-pub-key.der");
 
     fn cose_key() -> CoseKey {
-        let key: Vec<u8> = PUB_ECC_KEY_PARAMS
+        let (x, y) = ecc_p256_params();
+
+        CoseKeyBuilder::new_ec2_pub_key(coset::iana::EllipticCurve::P_256, x.to_vec(), y.to_vec())
+            .build()
+    }
+
+    pub(crate) fn ecc_p256_params() -> ([u8; 32], [u8; 32]) {
+        let params: Vec<u8> = PUB_ECC_KEY_PARAMS
             .split(":")
             .flat_map(|s| s.split_whitespace())
             .filter(|s| !s.is_empty())
             .map(|s| u8::from_str_radix(s, 16).expect("should be hex"))
             .collect();
 
-        assert_eq!(key.len(), 1 + 32 + 32);
+        assert_eq!(params.len(), 1 + 32 + 32);
 
-        CoseKeyBuilder::new_ec2_pub_key(
-            coset::iana::EllipticCurve::P_256,
-            // skip the 0x04 ecc ansi encoding
-            key[1..33].to_vec(),
-            key[33..].to_vec(),
-        )
-        .build()
+        // skip the 0x04 ecc ansi encoding
+        let x = params[1..33].try_into().unwrap();
+        let y = params[33..].try_into().unwrap();
+
+        (x, y)
     }
 
     fn pub_key_cases() -> [(PkEnc, PkBody<'static>); 4] {
@@ -531,5 +541,17 @@ pub(crate) mod tests {
         let err = PkEnc::try_from(4u8).unwrap_err();
 
         assert_eq!(*err.kind(), ErrorKind::OutOfRange);
+    }
+
+    #[test]
+    fn pk_pk_type() {
+        let pk_type = PkType::Secp256R1;
+        let pk = PublicKey {
+            pk_type,
+            pk_enc: PkEnc::X509,
+            pk_body: PkBody::X509(Cow::Borrowed(PUB_KEY_ECC.into())),
+        };
+
+        assert_eq!(pk.pk_type(), pk_type);
     }
 }

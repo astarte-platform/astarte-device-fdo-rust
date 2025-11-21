@@ -27,47 +27,90 @@ use serde_bytes::Bytes;
 use crate::error::ErrorKind;
 use crate::Error;
 
+/// Returns the value as a Key
+pub trait AsEccKey<const N: usize, const M: usize> {
+    /// Return the x param of the ECC
+    fn x(&self) -> &[u8; N];
+
+    /// Return the y param of the ECC
+    fn y(&self) -> &[u8; N];
+
+    /// Return the key.
+    fn as_key(&self) -> [u8; M] {
+        let mut array = [0u8; M];
+
+        array[0] = 0x4;
+        let slice = &mut array[1..(N + 1)];
+        debug_assert_eq!(slice.len(), N);
+        slice.copy_from_slice(self.x());
+
+        let slice = &mut array[(N + 1)..];
+        debug_assert_eq!(slice.len(), N);
+        slice.copy_from_slice(self.y());
+
+        array
+    }
+}
+
 /// Parameters for an key exchange with ECC keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EcdhParams<'a> {
-    x: &'a [u8],
-    y: &'a [u8],
+pub struct EcdhParams<'a, const N: usize> {
+    x: &'a [u8; N],
+    y: &'a [u8; N],
     rand: &'a [u8],
 }
 
-impl<'a> EcdhParams<'a> {
-    /// Create new parameters
-    pub fn new(x: &'a [u8], y: &'a [u8], rand: &'a [u8]) -> Self {
-        debug_assert_eq!(x.len(), y.len());
-
-        Self { x, y, rand }
-    }
-
-    /// Return the x field
-    pub fn x(&self) -> &'a [u8] {
-        self.x
-    }
-
-    /// Return the y field
-    pub fn y(&self) -> &'a [u8] {
-        self.y
-    }
-
+impl<'a, const N: usize> EcdhParams<'a, N> {
     /// Return the random part
     pub fn rand(&self) -> &'a [u8] {
         self.rand
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for EcdhParams<'a> {
+impl<'a> EcdhParams<'a, 32> {
+    /// Create the P-256 params
+    pub fn with_p256(x: &'a [u8; 32], y: &'a [u8; 32], rand: &'a [u8]) -> Self {
+        Self { x, y, rand }
+    }
+}
+
+impl<'a> EcdhParams<'a, 48> {
+    /// Create the P-256 params
+    pub fn with_p384(x: &'a [u8; 48], y: &'a [u8; 48], rand: &'a [u8]) -> Self {
+        Self { x, y, rand }
+    }
+}
+
+impl<'a> AsEccKey<32, 65> for EcdhParams<'a, 32> {
+    fn x(&self) -> &[u8; 32] {
+        self.x
+    }
+
+    fn y(&self) -> &[u8; 32] {
+        self.y
+    }
+}
+
+impl<'a> AsEccKey<48, 97> for EcdhParams<'a, 48> {
+    fn x(&self) -> &[u8; 48] {
+        self.x
+    }
+
+    fn y(&self) -> &[u8; 48] {
+        self.y
+    }
+}
+
+impl<'a, const N: usize> TryFrom<&'a [u8]> for EcdhParams<'a, N> {
     type Error = Error;
 
-    fn try_from(value: &[u8]) -> Result<EcdhParams<'_>, Self::Error> {
-        let (x, rest) = parse_len_prefixed_slice(value).ok_or(Error::new(
+    fn try_from(value: &[u8]) -> Result<EcdhParams<'_, N>, Self::Error> {
+        let (x, rest) = parse_len_prefixed_array(value).ok_or(Error::new(
             ErrorKind::Invalid,
             "for len prefixed slice EcdhParams",
         ))?;
-        let (y, rest) = parse_len_prefixed_slice(rest).ok_or(Error::new(
+
+        let (y, rest) = parse_len_prefixed_array(rest).ok_or(Error::new(
             ErrorKind::Invalid,
             "for len prefixed slice EcdhParams",
         ))?;
@@ -85,6 +128,20 @@ impl<'a> TryFrom<&'a [u8]> for EcdhParams<'a> {
 
         Ok(EcdhParams { x, y, rand })
     }
+}
+
+fn parse_len_prefixed_array<const N: usize>(bytes: &[u8]) -> Option<(&[u8; N], &[u8])> {
+    let (slice, rest) = parse_len_prefixed_slice(bytes)?;
+
+    let array = slice
+        .try_into()
+        .inspect_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "wrong slice size, expected {N}");
+        })
+        .ok()?;
+
+    Some((array, rest))
 }
 
 fn parse_len_prefixed_slice(bytes: &[u8]) -> Option<(&[u8], &[u8])> {
@@ -112,7 +169,7 @@ pub struct XAKeyExchange<'a>(Cow<'a, Bytes>);
 
 impl<'a> XAKeyExchange<'a> {
     /// Returns the [`EcdhParams`] of the exchange.
-    pub fn parse_ecdh(&self) -> Result<EcdhParams<'_>, crate::Error> {
+    pub fn parse_ecdh_p256(&self) -> Result<EcdhParams<'_, 32>, crate::Error> {
         let rest = self.as_ref();
 
         EcdhParams::try_from(rest)
@@ -138,7 +195,7 @@ pub struct XBKeyExchange<'a>(pub(crate) Cow<'a, Bytes>);
 
 impl XBKeyExchange<'static> {
     /// Create the XBKeyExchange from [`EcdhParams`]
-    pub fn create(params: EcdhParams) -> Result<Self, Error> {
+    pub fn create<const N: usize>(params: EcdhParams<'_, N>) -> Result<Self, Error> {
         let mut buf = Vec::new();
 
         let bx_len = u16::try_from(params.x.len())
@@ -221,11 +278,15 @@ impl Display for KexSuitNames {
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::v101::public_key::tests::ecc_p256_params;
+
     use super::*;
 
     #[test]
     fn xb_key_exchange_roundtrip() {
-        let params = EcdhParams::new(&[1, 2, 3, 4], &[5, 6, 7, 8], &[9, 10, 11, 12, 13, 14, 15]);
+        let (x, y) = ecc_p256_params();
+
+        let params = EcdhParams::with_p256(&x, &y, &[0xde, 0xad, 0xbe, 0xef]);
 
         let value = XBKeyExchange::create(params).unwrap();
 
@@ -241,7 +302,9 @@ mod tests {
 
     #[test]
     fn xa_key_exchange_roundtrip() {
-        let params = EcdhParams::new(&[1, 2, 3, 4], &[5, 6, 7, 8], &[9, 10, 11, 12, 13, 14, 15]);
+        let (x, y) = ecc_p256_params();
+
+        let params = EcdhParams::with_p256(&x, &y, &[0xde, 0xad, 0xbe, 0xef]);
 
         // Make it valid
         let value = XBKeyExchange::create(params).unwrap();
@@ -259,19 +322,21 @@ mod tests {
 
     #[test]
     fn xb_key_exchange_param_roundtrip() {
-        let params = EcdhParams::new(&[1, 2, 3, 4], &[5, 6, 7, 8], &[9, 10, 11, 12, 13, 14, 15]);
+        let (x, y) = ecc_p256_params();
+        let params = EcdhParams::with_p256(&x, &y, &[0xde, 0xad, 0xbe, 0xef]);
 
         let bx = XBKeyExchange::create(params).unwrap();
         let ax = XAKeyExchange(bx.0);
 
-        let res = ax.parse_ecdh().unwrap();
+        let res = ax.parse_ecdh_p256().unwrap();
 
         assert_eq!(res, params);
     }
 
     #[test]
     fn xb_key_as_ref() {
-        let params = EcdhParams::new(&[1, 2, 3, 4], &[5, 6, 7, 8], &[9, 10, 11, 12, 13, 14, 15]);
+        let (x, y) = ecc_p256_params();
+        let params = EcdhParams::with_p256(&x, &y, &[0xde, 0xad, 0xbe, 0xef]);
 
         let bx = XBKeyExchange::create(params).unwrap();
 
@@ -298,13 +363,12 @@ mod tests {
 
     #[test]
     fn ecdh_params_getters() {
-        let x = &[1, 2, 3, 4];
-        let y = &[5, 6, 7, 8];
-        let rand = &[9, 10, 11, 12, 13, 14, 15];
-        let params = EcdhParams::new(x, y, rand);
+        let (x, y) = ecc_p256_params();
+        let rand = &[0xde, 0xad, 0xbe, 0xef];
+        let params = EcdhParams::with_p256(&x, &y, rand);
 
-        assert_eq!(params.x(), x);
-        assert_eq!(params.y(), y);
+        assert_eq!(*params.x(), x);
+        assert_eq!(*params.y(), y);
         assert_eq!(params.rand(), rand);
     }
 
@@ -312,7 +376,7 @@ mod tests {
     fn ecdh_params_errors() {
         // Empty
         XAKeyExchange(Cow::Borrowed(Bytes::new(&[])))
-            .parse_ecdh()
+            .parse_ecdh_p256()
             .unwrap_err();
 
         let x = &[1, 2, 3, 4];
@@ -327,7 +391,7 @@ mod tests {
         buf.extend_from_slice(y);
 
         XAKeyExchange(Cow::Borrowed(Bytes::new(buf.as_slice())))
-            .parse_ecdh()
+            .parse_ecdh_p256()
             .unwrap_err();
 
         let mut buf: Vec<u8> = Vec::new();
@@ -339,7 +403,7 @@ mod tests {
         buf.extend_from_slice(y);
 
         XAKeyExchange(Cow::Borrowed(Bytes::new(buf.as_slice())))
-            .parse_ecdh()
+            .parse_ecdh_p256()
             .unwrap_err();
 
         let mut buf: Vec<u8> = Vec::new();
@@ -354,7 +418,7 @@ mod tests {
         buf.extend_from_slice(y);
 
         XAKeyExchange(Cow::Borrowed(Bytes::new(buf.as_slice())))
-            .parse_ecdh()
+            .parse_ecdh_p256()
             .unwrap_err();
     }
 }

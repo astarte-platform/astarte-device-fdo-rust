@@ -260,28 +260,30 @@ pub type NonceTo0Sign = Nonce;
 /// ```cddl
 /// NonceTO1Proof = Nonce
 /// ```
-pub type NonceTo1Proof = Nonce;
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct NonceTo1Proof(pub Nonce);
 
 /// ```cddl
 /// NonceTO2ProveOV = Nonce
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct NonceTo2ProveOv(pub(crate) Nonce);
+pub struct NonceTo2ProveOv(pub Nonce);
 
 /// ```cddl
 /// NonceTO2ProveDv = Nonce
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct NonceTo2ProveDv(pub(crate) Nonce);
+pub struct NonceTo2ProveDv(pub Nonce);
 
 /// ```cddl
 /// NonceTO2SetupDv = Nonce
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct NonceTo2SetupDv(pub(crate) Nonce);
+pub struct NonceTo2SetupDv(pub Nonce);
 
 #[cfg(test)]
 pub(crate) mod tests {

@@ -27,6 +27,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 
+use crate::error::ErrorKind;
+use crate::Error;
+
 /// A `bstr` with for an encoded `cbor` value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CborBstr<'a, T> {
@@ -44,19 +47,22 @@ impl<'a, T> CborBstr<'a, T> {
     }
 
     /// Returns the encoded value as a CBOR byte string.
-    pub(crate) fn bytes(&self) -> Result<&Cow<'a, Bytes>, ciborium::ser::Error<std::io::Error>>
+    pub fn bytes(&self) -> Result<&Cow<'a, Bytes>, Error>
     where
         T: Serialize,
     {
-        self.bytes.get_or_try_init(
-            || -> Result<Cow<'a, Bytes>, ciborium::ser::Error<std::io::Error>> {
-                let mut buf = Vec::new();
+        self.bytes.get_or_try_init(|| {
+            let mut buf = Vec::new();
 
-                ciborium::into_writer(&self.value, &mut buf)?;
+            ciborium::into_writer(&self.value, &mut buf).map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, "couldn't encode cbor bstr value");
 
-                Ok(Cow::Owned(buf.into()))
-            },
-        )
+                Error::new(ErrorKind::Encode, "cbor bstr value")
+            })?;
+
+            Ok(Cow::Owned(buf.into()))
+        })
     }
 }
 

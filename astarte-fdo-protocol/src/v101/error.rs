@@ -120,6 +120,8 @@ impl Serialize for ErrorMessage<'_> {
             e_m_error_c_i_d,
         } = self;
 
+        let e_m_error_ts = e_m_error_ts.as_ref().map(ciborium::tag::Required::<_, 6>);
+
         (
             e_m_error_code,
             e_m_prev_msg_id,
@@ -139,11 +141,13 @@ impl<'de> Deserialize<'de> for ErrorMessage<'_> {
         let (e_m_error_code, e_m_prev_msg_id, e_m_error_str, e_m_error_ts, e_m_error_c_i_d) =
             Deserialize::deserialize(deserializer)?;
 
+        let e_m_error_ts: Option<ciborium::tag::Accepted<Timestamp, 6>> = e_m_error_ts;
+
         Ok(Self {
             e_m_error_code,
             e_m_prev_msg_id,
             e_m_error_str,
-            e_m_error_ts,
+            e_m_error_ts: e_m_error_ts.map(|t| t.0),
             e_m_error_c_i_d,
         })
     }
@@ -333,13 +337,13 @@ pub enum Timestamp<'a> {
     /// Utc date time integer.
     ///
     /// Seconds from 1970-01-01T00:00:00Z.
-    UtcInt(i128),
+    UtcInt(u64),
     /// Local date time.
     ///
     /// Seconds from 1970-01-01.
     ///
     /// The TIMET choice is intended to remove the UTC restriction and allow a Device-local time value to be used.
-    TimeT(i128),
+    TimeT(u64),
 }
 
 #[cfg(test)]
@@ -364,26 +368,6 @@ mod tests {
         assert_eq!(res, error_msg);
 
         insta::assert_binary_snapshot!(".cbor", buf);
-    }
-
-    #[test]
-    fn error_message_error() {
-        let error_msg = ErrorMessage::new(
-            ErrorCode::InternalServerError,
-            60,
-            "some error".into(),
-            None,
-            None,
-        );
-
-        let mut buf = Vec::new();
-        error_msg.encode(&mut buf).unwrap();
-
-        insta::assert_debug_snapshot!(buf);
-
-        let res = ErrorMessage::decode(&buf).unwrap();
-
-        assert_eq!(res, error_msg);
     }
 
     #[test]

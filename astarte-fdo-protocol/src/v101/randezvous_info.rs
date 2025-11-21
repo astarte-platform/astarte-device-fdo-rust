@@ -54,8 +54,10 @@ pub type RendezvousDirective<'a> = OneOrMore<RendezvousInstr<'a>>;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct RendezvousInstr<'a> {
-    pub(crate) rv_variable: RvVariable,
-    pub(crate) rv_value: RvValue<'a>,
+    /// Identifies the type to decode for [`rv_value`](Self::rv_value)
+    pub rv_variable: RvVariable,
+    /// Instruction to contact the Rendezvous Server.
+    pub rv_value: RvValue<'a>,
 }
 
 impl Serialize for RendezvousInstr<'_> {

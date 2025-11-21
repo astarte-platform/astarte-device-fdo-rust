@@ -112,12 +112,18 @@ impl<'de> Deserialize<'de> for OwnershipVoucher<'_> {
 /// ]
 #[derive(Debug, Clone, PartialEq)]
 pub struct OvHeader<'a> {
-    pub(crate) ovh_prot_ver: Protver,
-    pub(crate) ov_guid: Guid,
-    pub(crate) ov_rv_info: RendezvousInfo<'a>,
-    pub(crate) ov_device_info: Cow<'a, str>,
-    pub(crate) ov_pub_key: PublicKey<'a>,
-    pub(crate) ov_dev_cert_chain_hash: OvDevCertChainHashOrNull<'a>,
+    /// Protocol version
+    pub ovh_prot_ver: Protver,
+    /// Device GUID
+    pub ov_guid: Guid,
+    /// RendezvousInfo for the RVServer
+    pub ov_rv_info: RendezvousInfo<'a>,
+    /// Device info
+    pub ov_device_info: Cow<'a, str>,
+    /// Manufacturing public key
+    pub ov_pub_key: PublicKey<'a>,
+    /// Device certificate chain
+    pub ov_dev_cert_chain_hash: OvDevCertChainHashOrNull<'a>,
 }
 
 impl Serialize for OvHeader<'_> {
@@ -203,6 +209,11 @@ pub struct OvEntry {
 const SIGN_TAG: u64 = coset::iana::CborTag::CoseSign1 as u64;
 
 impl OvEntry {
+    /// Returns the Cose sign
+    pub fn sing(&self) -> &CoseSign1 {
+        &self.entry
+    }
+
     /// Return the [CoseSign1] payload decode for this entry.
     pub fn payload(self) -> Result<(Vec<u8>, OvEntryPayload<'static>), Error> {
         let payload = self
@@ -270,6 +281,25 @@ pub struct OvEntryPayload<'a> {
     pub(crate) ov_e_pubkey: PublicKey<'a>,
 }
 
+impl<'a> OvEntryPayload<'a> {
+    /// Returns the previous entry hash
+    pub fn prev(&self) -> &Hash<'a> {
+        &self.ov_e_hash_prev_entry
+    }
+
+    /// Returns the hrd entry hash.
+    ///
+    /// hash[GUID||DeviceInfo] in header
+    pub fn hdr(&self) -> &Hash<'a> {
+        &self.ov_e_hash_hdr_info
+    }
+
+    /// Returns the ov entry public key
+    pub fn take_pubkey(self) -> PublicKey<'a> {
+        self.ov_e_pubkey
+    }
+}
+
 impl Serialize for OvEntryPayload<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -323,11 +353,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::v101::hash_hmac::tests::{create_hash, create_hmac};
-    use crate::v101::hash_hmac::Hashtype;
     use crate::v101::public_key::tests::PUB_KEY_ECC;
     use crate::v101::public_key::{PkBody, PkEnc, PkType};
     use crate::v101::randezvous_info::tests::create_rv_info;
-    use crate::v101::tests::create_guid;
+    use crate::v101::tests::{create_guid, from_hex};
     use crate::v101::x509::tests::create_cose_x509;
     use crate::v101::PROTOCOL_VERSION;
 
@@ -369,18 +398,14 @@ mod tests {
 
     fn create_ov_entry_payload() -> OvEntryPayload<'static> {
         OvEntryPayload {
-            ov_e_hash_prev_entry: Hash {
-                hashtype: Hashtype::Sha256,
-                hash: Cow::Borrowed(Bytes::new(
-                    b"9be58b34344cfaab4b798288b7adedbbe451a2cf7cacf9b0d2aecef26cc0e1d1",
-                )),
-            },
-            ov_e_hash_hdr_info: Hash {
-                hashtype: Hashtype::Sha256,
-                hash: Cow::Borrowed(Bytes::new(
-                    b"3443c6b88aeb31f50eceb9d8acf0591fb757dcf6e50b23b75d0fb9c00fba2d65",
-                )),
-            },
+            ov_e_hash_prev_entry: Hash::with_sha256(Cow::Owned(
+                from_hex("9be58b34344cfaab4b798288b7adedbbe451a2cf7cacf9b0d2aecef26cc0e1d1").into(),
+            ))
+            .unwrap(),
+            ov_e_hash_hdr_info: Hash::with_sha256(Cow::Owned(
+                from_hex("3443c6b88aeb31f50eceb9d8acf0591fb757dcf6e50b23b75d0fb9c00fba2d65").into(),
+            ))
+            .unwrap(),
             ov_e_extra: Some(CborBstr::new(Default::default())),
             ov_e_pubkey: PublicKey {
                 pk_type: PkType::Secp256R1,

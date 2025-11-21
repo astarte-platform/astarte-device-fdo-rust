@@ -38,8 +38,8 @@ use crate::Error;
 /// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct Hash<'a> {
-    pub(crate) hashtype: Hashtype,
-    pub(crate) hash: Cow<'a, Bytes>,
+    hashtype: Hashtype,
+    hash: Cow<'a, Bytes>,
 }
 
 impl<'a> Hash<'a> {
@@ -49,6 +49,33 @@ impl<'a> Hash<'a> {
             hashtype: self.hashtype,
             hash: Cow::Owned(self.hash.into_owned()),
         }
+    }
+
+    /// Create a [`SHA256`](Hashtype::Sha256)
+    pub fn with_sha256(hash: Cow<'a, Bytes>) -> Option<Self> {
+        (hash.len() == 32).then_some(Self {
+            hashtype: Hashtype::Sha256,
+            hash,
+        })
+    }
+
+    /// Create a [`SHA384`](Hashtype::Sha384)
+    pub fn with_sha384(hash: Cow<'a, Bytes>) -> Option<Self> {
+        (hash.len() == 48).then_some(Self {
+            hashtype: Hashtype::Sha384,
+            hash,
+        })
+    }
+
+    /// Returns the [`Hashtype`]
+    pub fn hash_type(&self) -> Hashtype {
+        self.hashtype
+    }
+}
+
+impl AsRef<[u8]> for Hash<'_> {
+    fn as_ref(&self) -> &[u8] {
+        &self.hash
     }
 }
 
@@ -90,7 +117,62 @@ impl<'de> Deserialize<'de> for Hash<'_> {
 /// ```cddl
 /// HMac = Hash
 /// ```
-pub type HMac<'a> = Hash<'a>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HMac<'a>(Hash<'a>);
+
+impl<'a> HMac<'a> {
+    /// Create an [`HMAC-SHA256`](Hashtype::HmacSha256)
+    pub fn with_sha256(hash: Cow<'a, Bytes>) -> Option<Self> {
+        (hash.len() == 32).then_some(Self(Hash {
+            hashtype: Hashtype::HmacSha256,
+            hash,
+        }))
+    }
+
+    /// Create an [`HMAC-SHA384`](Hashtype::HmacSha384)
+    pub fn with_sha384(hash: Cow<'a, Bytes>) -> Option<Self> {
+        (hash.len() == 48).then_some(Self(Hash {
+            hashtype: Hashtype::HmacSha384,
+            hash,
+        }))
+    }
+
+    /// Return the hash type.
+    pub fn hash_type(&self) -> Hashtype {
+        self.0.hash_type()
+    }
+}
+
+impl AsRef<[u8]> for HMac<'_> {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl Serialize for HMac<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for HMac<'_> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let hash = Hash::deserialize(deserializer)?;
+
+        match hash.hash_type() {
+            Hashtype::HmacSha256 | Hashtype::HmacSha384 => Ok(HMac(hash)),
+            Hashtype::Sha256 | Hashtype::Sha384 => Err(serde::de::Error::custom(
+                "invalid hashtype, not a hmac type",
+            )),
+        }
+    }
+}
 
 /// ```cddl
 /// hashtype = (
@@ -172,14 +254,14 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn create_hmac() -> Hash<'static> {
-        Hash {
+    pub(crate) fn create_hmac() -> HMac<'static> {
+        HMac(Hash {
             hashtype: Hashtype::HmacSha256,
             // Not a valid hash
             hash: Cow::Owned(
                 from_hex("7611e85222ca622f3fddf9ef93b7385754ce5e3381e778e9149f130e485974e1").into(),
             ),
-        }
+        })
     }
 
     #[test]
@@ -189,6 +271,19 @@ pub(crate) mod tests {
         ciborium::into_writer(&case, &mut buf).unwrap();
 
         let res: Hash = ciborium::from_reader(buf.as_slice()).unwrap();
+
+        assert_eq!(res, case);
+
+        insta::assert_binary_snapshot!(".cbor", buf);
+    }
+
+    #[test]
+    fn hamac_roundtrip() {
+        let case = create_hmac();
+        let mut buf = Vec::new();
+        ciborium::into_writer(&case, &mut buf).unwrap();
+
+        let res: HMac = ciborium::from_reader(buf.as_slice()).unwrap();
 
         assert_eq!(res, case);
 
@@ -252,5 +347,117 @@ pub(crate) mod tests {
             assert_eq!(case.is_hash(), is_hash);
             assert_eq!(case.is_hmac(), is_hmac);
         }
+    }
+
+    #[test]
+    fn hash_create() {
+        let cases = [
+            (
+                from_hex("7424985ee56213b1b0f3699408ac88eae810e6e25596213fc62f1301f96b7d80"),
+                Some(Hash {
+                    hashtype: Hashtype::Sha256,
+                    hash: Cow::Owned(
+                        from_hex(
+                            "7424985ee56213b1b0f3699408ac88eae810e6e25596213fc62f1301f96b7d80",
+                        )
+                        .into(),
+                    ),
+                }),
+            ),
+            (
+                from_hex("1f0da65eda5eafeb7d7aaee622980693452f4e50b33eca779c85b76cf779985ef3026afa46dfa0f5b0d23959b3471179"),
+                None,
+            ),
+        ];
+
+        for (hash, exp) in cases {
+            assert_eq!(Hash::with_sha256(Cow::Owned(hash.into())), exp)
+        }
+
+        let cases = [
+            (
+                from_hex("8d1e5565befe593307d98a73b4ce7aa22e94ed8d7812ce8393bc42373360bee6a404c283f3662b0d7c4745a34f97d900"),
+                Some(Hash {
+                    hashtype: Hashtype::Sha384,
+                    hash: Cow::Owned(
+                        from_hex(
+                            "8d1e5565befe593307d98a73b4ce7aa22e94ed8d7812ce8393bc42373360bee6a404c283f3662b0d7c4745a34f97d900",
+                        )
+                        .into(),
+                    ),
+                }),
+            ),
+            (
+                from_hex("7424985ee56213b1b0f3699408ac88eae810e6e25596213fc62f1301f96b7d80"),
+                None,
+            ),
+        ];
+
+        for (hash, exp) in cases {
+            assert_eq!(Hash::with_sha384(Cow::Owned(hash.into())), exp)
+        }
+    }
+
+    #[test]
+    fn hmac_create() {
+        let cases = [
+            (
+                from_hex("2037648dd0552e86c7fa2c9f607f7a78dab3247bc732af40efdb814c379d9184"),
+                Some(HMac(Hash {
+                    hashtype: Hashtype::HmacSha256,
+                    hash: Cow::Owned(
+                        from_hex(
+                            "2037648dd0552e86c7fa2c9f607f7a78dab3247bc732af40efdb814c379d9184",
+                        )
+                        .into(),
+                    ),
+                })),
+            ),
+            (from_hex("1f0da65eda5eafeb7d7aaee622980693452f4e50b33eca779c85b76cf779985ef3026afa46dfa0f5b0d23959b3471179"), None),
+        ];
+
+        for (hash, exp) in cases {
+            assert_eq!(HMac::with_sha256(Cow::Owned(hash.into())), exp)
+        }
+
+        let cases = [
+            (
+                from_hex("8d1e5565befe593307d98a73b4ce7aa22e94ed8d7812ce8393bc42373360bee6a404c283f3662b0d7c4745a34f97d900"),
+                Some(HMac(Hash {
+                    hashtype: Hashtype::HmacSha384,
+                    hash: Cow::Owned(
+                        from_hex(
+                            "8d1e5565befe593307d98a73b4ce7aa22e94ed8d7812ce8393bc42373360bee6a404c283f3662b0d7c4745a34f97d900",
+                        )
+                        .into(),
+                    ),
+                })),
+            ),
+            (
+                from_hex("7424985ee56213b1b0f3699408ac88eae810e6e25596213fc62f1301f96b7d80"),
+                None,
+            ),
+        ];
+
+        for (hash, exp) in cases {
+            assert_eq!(HMac::with_sha384(Cow::Owned(hash.into())), exp)
+        }
+    }
+
+    #[test]
+    fn hash_hmac_hashtype() {
+        let case = Hash::with_sha256(Cow::Owned(
+            from_hex("7424985ee56213b1b0f3699408ac88eae810e6e25596213fc62f1301f96b7d80").into(),
+        ))
+        .unwrap();
+
+        assert_eq!(case.hash_type(), Hashtype::Sha256);
+
+        let case = HMac::with_sha256(Cow::Owned(
+            from_hex("7424985ee56213b1b0f3699408ac88eae810e6e25596213fc62f1301f96b7d80").into(),
+        ))
+        .unwrap();
+
+        assert_eq!(case.hash_type(), Hashtype::HmacSha256);
     }
 }

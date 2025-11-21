@@ -28,7 +28,8 @@ pub struct Error {
 }
 
 impl Error {
-    pub(crate) const fn new(kind: ErrorKind, ctx: &'static str) -> Self {
+    /// Create a new error with the given context.
+    pub const fn new(kind: ErrorKind, ctx: &'static str) -> Self {
         Self { kind, ctx }
     }
 
@@ -59,6 +60,12 @@ pub enum ErrorKind {
     Invalid,
     /// Couldn't write data.
     Write,
+    /// Couldn't complete crypto operation.
+    Crypto,
+    /// Couldn't complete io operation
+    Io,
+    /// Protocol error
+    Message,
 }
 
 impl Display for ErrorKind {
@@ -69,6 +76,9 @@ impl Display for ErrorKind {
             ErrorKind::OutOfRange => write!(f, "value out of range"),
             ErrorKind::Invalid => write!(f, "invalid value"),
             ErrorKind::Write => write!(f, "couldn't write"),
+            ErrorKind::Crypto => write!(f, "couldn't complete crypto operation"),
+            ErrorKind::Io => write!(f, "couldn't complete io operation"),
+            ErrorKind::Message => write!(f, "error message"),
         }
     }
 }
@@ -103,6 +113,8 @@ mod tests {
             ErrorKind::OutOfRange,
             ErrorKind::Invalid,
             ErrorKind::Write,
+            ErrorKind::Crypto,
+            ErrorKind::Message,
         ]
         .map(|t| t.to_string())
         .join("\n");

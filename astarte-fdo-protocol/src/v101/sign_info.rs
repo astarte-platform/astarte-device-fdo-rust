@@ -25,7 +25,7 @@
 use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
-use serde_bytes::Bytes;
+use serde_bytes::{ByteBuf, Bytes};
 
 use crate::error::ErrorKind;
 use crate::Error;
@@ -41,6 +41,16 @@ pub struct SigInfo<'a> {
     pub(crate) sg_type: DeviceSgType,
     // NOTE: this is usually empty?
     pub(crate) info: Cow<'a, Bytes>,
+}
+
+impl<'a> SigInfo<'a> {
+    /// Create the sign info with the given type
+    pub fn new(sg_type: DeviceSgType) -> Self {
+        Self {
+            sg_type,
+            info: Cow::Owned(ByteBuf::new()),
+        }
+    }
 }
 
 impl Serialize for SigInfo<'_> {

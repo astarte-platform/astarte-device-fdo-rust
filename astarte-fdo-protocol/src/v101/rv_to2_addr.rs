@@ -48,6 +48,28 @@ pub struct RvTo2AddrEntry<'a> {
     pub(crate) rv_protocol: TransportProtocol,
 }
 
+impl<'a> RvTo2AddrEntry<'a> {
+    /// Return the DNS address
+    pub fn rv_dns(&self) -> Option<&DnsAddress<'a>> {
+        self.rv_dns.as_ref()
+    }
+
+    /// Return the IP address
+    pub fn rv_ip(&self) -> Option<&IpAddress> {
+        self.rv_ip.as_ref()
+    }
+
+    /// Return the Port
+    pub fn rv_port(&self) -> u16 {
+        self.rv_port
+    }
+
+    /// Return the protocol
+    pub fn rv_protocol(&self) -> TransportProtocol {
+        self.rv_protocol
+    }
+}
+
 impl Serialize for RvTo2AddrEntry<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
