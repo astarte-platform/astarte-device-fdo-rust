@@ -25,6 +25,7 @@ use astarte_device_fdo::crypto::Crypto;
 use astarte_device_fdo::di::Di;
 use astarte_device_fdo::storage::{FileStorage, Storage};
 use astarte_device_fdo::to1::To1;
+use astarte_device_fdo::to2::To2;
 use astarte_device_fdo::Ctx;
 use clap::{Parser, Subcommand};
 use eyre::{bail, eyre};
@@ -121,7 +122,9 @@ impl Protocol {
                 };
 
                 // TODO: maybe pass a ref to dc?
-                let _rv = To1::new(dc.clone()).rv_owner(ctx).await?;
+                let rv = To1::new(&dc).rv_owner(ctx).await?;
+
+                To2::create(dc, rv)?.to2_change(ctx).await?;
             }
         }
 
