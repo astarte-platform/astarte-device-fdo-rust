@@ -31,6 +31,7 @@ aws-lc-rs.workspace = true
 ciborium.workspace = true
 coset.workspace = true
 nix = { workspace = true, features = ["ioctl"] }
+rand = { workspace = true, default-features = false, features = ["thread_rng"] }
 rcgen = { workspace = true, default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
 reqwest = { workspace = true, default-features = false, features = ["charset", "http2", "system-proxy", "rustls-tls-manual-roots-no-provider"] }
 serde_bytes.workspace = true

@@ -24,9 +24,10 @@ use astarte_device_fdo::crypto::software::SoftwareCrypto;
 use astarte_device_fdo::crypto::Crypto;
 use astarte_device_fdo::di::Di;
 use astarte_device_fdo::storage::{FileStorage, Storage};
+use astarte_device_fdo::to1::To1;
 use astarte_device_fdo::Ctx;
 use clap::{Parser, Subcommand};
-use eyre::eyre;
+use eyre::{bail, eyre};
 use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -70,6 +71,7 @@ enum Protocol {
         #[arg(long)]
         export_guid: Option<PathBuf>,
     },
+    To {},
 }
 
 impl Protocol {
@@ -112,6 +114,13 @@ impl Protocol {
 
                     info!(path = %path.display(), "guid exported");
                 }
+            }
+            Protocol::To {} => {
+                let Some(dc) = Di::read_existing(ctx).await? else {
+                    bail!("device credentials missing, DI not yet completed");
+                };
+
+                let _rv = To1::new(&dc).rv_owner(ctx).await?;
             }
         }
 
