@@ -23,3 +23,12 @@ SPDX-License-Identifier: Apache-2.0
 Implementation on the FIDO Device Onboarding protocol FDO:
 
 <https://fidoalliance.org/specs/FDO/FIDO-Device-Onboard-PS-v1.1-20220419/FIDO-Device-Onboard-PS-v1.1-20220419.html>
+
+## Run
+
+To test the example you can run:
+
+```sh
+just setup
+just run
+```
