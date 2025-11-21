@@ -16,17 +16,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Astarte FDO Protocol
+//!
+//! This implements the CBOR serialization and deserialization for the protocol messages and
+//! structures.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use v101 as latest;
+pub mod v101;
+
+pub mod error;
+pub mod utils;
+
+pub use self::error::Error;
