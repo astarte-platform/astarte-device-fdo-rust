@@ -1,0 +1,17 @@
+---
+source: astarte-fdo-protocol/src/v101/public_key.rs
+expression: pub_key
+---
+PublicKey {
+    pk_type: Secp256R1,
+    pk_enc: Crypto,
+    pk_body: Crypto(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+        ],
+    ),
+}

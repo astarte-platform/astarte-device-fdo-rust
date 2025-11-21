@@ -1,0 +1,7 @@
+---
+source: astarte-fdo-protocol/src/v101/mod.rs
+expression: guid
+---
+Guid(
+    43bc9e0f731a4e7f947c5d03b0c1e483,
+)
