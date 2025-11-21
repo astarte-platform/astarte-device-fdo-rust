@@ -73,8 +73,7 @@ client-di:
 # Runs the example Transfer Ownership
 [group('client')]
 client-to:
-    # TODO
-    -cargo e2e-test plain-fs to
+    cargo e2e-test plain-fs to
 
 # Shows the device credentials
 [group('client')]
