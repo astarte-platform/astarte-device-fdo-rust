@@ -31,6 +31,7 @@ export CONTAINER := if which("podman") != "" {
 }
 # FDO directory
 export FDODIR := "./.tmp/fdo"
+export FDO_DEVICE_GUID := "./.tmp/fdo/device_guid.txt"
 export REPOS := "./.tmp/repos"
 export CONTAINER_CACHE := "./.tmp/cache/containers"
 
@@ -40,78 +41,118 @@ export GO_SERVER_REF := "01a7aa7be9f58f17ad40242380e3e92b169bc307"
 help:
     just --list
 
-# Runs the example di
-client-di:
-    cd client && cargo run -- plain-fs di
+# Starts the server and run the full FDO
+setup: go-server-setup
 
-# Runs the example Transfer Ownership
-client-to:
-    cd client && cargo run -- plain-fs to
-
-# Shows the device credentials
-client-inspect:
-    cd client && cargo run -- plain-fs inspect
+# Starts the server and run the full FDO
+run: go-server-run client-run
 
 # Build the tpm2-tss
 build-tpm2-tss:
     ./scripts/tpm/build-tpm2-tss.sh
 
 # Clean
-clean:
-    -$CONTAINER stop fdo-rendezvous
-    -$CONTAINER stop fdo-manufacturer
-    -$CONTAINER stop fdo-owner
+clean: go-server-stop
     -./scripts/vms/vish-destroy.sh
-    -rm -rf "$FDODIR"
+    -rm -rvf "$FDODIR"
+    -rm -rvf "./.tmp/fdo-astarte"
+
+###
+# Rust client
+#
+
+# Runs the full fdo protocol
+[group('client')]
+client-run: client-di go-server-to0 client-to
+
+# Runs the example di
+[group('client')]
+client-di:
+    cargo e2e-test plain-fs di --export-guid "$FDO_DEVICE_GUID"
+
+# Runs the example Transfer Ownership
+[group('client')]
+client-to:
+    # TODO
+    -cargo e2e-test plain-fs to
+
+# Shows the device credentials
+[group('client')]
+client-inspect:
+    cargo e2e-test plain-fs inspect
 
 ####
 # Go server and client setup
 #
 
+# Setups the go-server
+[group('server')]
+go-server-setup: go-server-clone go-server-build go-server-keys
+
+# Run all the go-server configuration
+[group('server')]
+go-server-run: go-server-start go-server-create-rv-info
+
 # Initialize the fdo files and container
+[group('server')]
 go-server-clone:
     ./scripts/go-fdo/clone.sh \
         https://github.com/fido-device-onboard/go-fdo-server.git \
         go-fdo-server "$GO_SERVER_REF"
 
 # Builds the go containers
+[group('server')]
 go-server-build:
     ./scripts/go-fdo/build.sh go-fdo-server "$GO_SERVER_REF"
 
-# Run the go servers
-go-server-run:
+# Creates the keys for the server
+[group('server')]
+go-server-keys:
     ./scripts/go-fdo/setup.sh
+
+# Run the go servers
+[group('server')]
+go-server-serve:
     ./scripts/go-fdo/serve.sh
 
+# Stop the servers
+[group('server')]
+go-server-stop:
+    -$CONTAINER stop fdo-rendezvous
+    -$CONTAINER stop fdo-manufacturer
+    -$CONTAINER stop fdo-owner
+
 # Check health of servers
+[group('server')]
 go-server-health:
     curl --fail --retry 3 --retry-delay 2 --retry-connrefused http://localhost:8041/health  # Rendezvous
     curl --fail --retry 3 --retry-delay 2 --retry-connrefused http://localhost:8038/health  # Manufacturing
     curl --fail --retry 3 --retry-delay 2 --retry-connrefused http://localhost:8043/health  # Owner
 
 # Run the go servers and checks the health
-go-server-start: go-server-run go-server-health
-
-# Run all the go-server configuration
-go-server-all: go-server-clone go-server-build go-server-start go-data-create
+[group('server')]
+go-server-start: go-server-serve go-server-health
 
 # Create the rendezvous data data
-go-data-create:
-    curl --fail --location --request POST 'http://localhost:8038/api/v1/rvinfo' --header 'Content-Type: text/plain' --data-raw '[{"dns":"localhost","device_port":"8041","owner_port":"8041","protocol":"http","ip":"127.0.0.1"}]'
-    curl --fail --location --request POST 'http://localhost:8043/api/v1/owner/redirect' --header 'Content-Type: text/plain' --data-raw '[{"dns":"localhost","port":"8043","protocol":"http","ip":"127.0.0.1"}]'
+[group('server')]
+go-server-create-rv-info:
+    ./scripts/go-fdo/create-rv-info.sh
 
 # Check the rendezvous information
-go-data-info:
+[group('server')]
+go-server-get-rv-info:
     curl --fail --location --request GET 'http://localhost:8038/api/v1/rvinfo' | jq
     curl --fail --location --request GET 'http://localhost:8043/api/v1/owner/redirect' | jq
 
 
 # Sends the Manufacturing voucher to the owner TO0
-go-send-to0 guid:
-    ./scripts/go-fdo/send-to0.sh "{{ guid }}"
+[group('server')]
+go-server-to0:
+    ./scripts/go-fdo/send-to0.sh
 
 # Use the go client to do all the FDO
-go-basic-onboarding:
+[group('server')]
+go-client-basic-onboarding:
     ./scripts/go-fdo/clone.sh \
         https://github.com/fido-device-onboard/go-fdo-client.git \
         go-fdo-client \
@@ -124,9 +165,11 @@ go-basic-onboarding:
 #
 
 # Launch the VM
+[group('vm')]
 vm-launch:
     ./scripts/vms/vish-destroy.sh
 
 # SSH into the VM and runs the example
+[group('vm')]
 vm-run:
     ./scripts/run-on-vm.sh

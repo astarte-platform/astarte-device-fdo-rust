@@ -49,13 +49,15 @@ use super::Crypto;
 const AES_256_KEY_FILE: &str = "aes-256-key.bin";
 const PRIVATE_ECC_KEY_FILE: &str = "private-key.ecc.p8";
 
-pub(crate) struct SoftwareCrypto<S> {
+/// Software base cryptographic operations.
+pub struct SoftwareCrypto<S> {
     rng: SystemRandom,
     storage: S,
 }
 
 impl<S> SoftwareCrypto<S> {
-    pub(crate) async fn create(storage: S) -> Result<Self, Error>
+    /// Creates a new instance.
+    pub async fn create(storage: S) -> Result<Self, Error>
     where
         S: Storage,
     {
