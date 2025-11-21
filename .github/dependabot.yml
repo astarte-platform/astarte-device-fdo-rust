@@ -22,6 +22,11 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+  - package-ecosystem: docker
+    directories:
+      - "/containers/tpm2-tss-build/"
+    schedule:
+      interval: weekly
   - package-ecosystem: cargo
     directory: "/"
     schedule:

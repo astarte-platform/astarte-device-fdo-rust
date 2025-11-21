@@ -1,0 +1,6 @@
+---
+source: astarte-fdo-protocol/src/v101/key_exchange.rs
+expression: buf
+extension: cbor
+snapshot_kind: binary
+---
