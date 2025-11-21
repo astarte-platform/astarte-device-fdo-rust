@@ -22,6 +22,8 @@
 //! created device’s ROE. This prepares the device and establishes the first in a chain for creating
 //! an Ownership Voucher with which to transfer ownership of the device.
 
+use std::borrow::Cow;
+
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::device_credentials::DeviceCredential;
 use astarte_fdo_protocol::v101::di::app_start::AppStart;
@@ -44,22 +46,43 @@ use crate::Ctx;
 
 pub(crate) const DEVICE_CREDS: &str = "device_creds.cbor";
 
-pub(crate) struct Di<T, A = HeaderValue> {
+/// Di protocol.
+pub struct Di<T, A = HeaderValue> {
     client: Client<A>,
     state: T,
 }
 
 impl<'a> Di<Start<'a>, NeedsAuth> {
-    pub(crate) fn new(client: Client<NeedsAuth>, device_info: MfgInfo<'a>) -> Self {
-        Self {
+    /// Create the client to start the Di protocol
+    pub async fn create<C, S>(
+        ctx: &mut Ctx<'_, C, S>,
+        client: Client<NeedsAuth>,
+        model_no: &'a str,
+        serial_no: &'a str,
+    ) -> Result<Self, Error>
+    where
+        C: Crypto,
+    {
+        let csr = ctx.crypto.csr(model_no).await?;
+
+        let device_mfg_info = MfgInfo::new(
+            ctx.crypto.pk_type(),
+            C::PK_ENC,
+            Cow::Owned(csr.into()),
+            serial_no.into(),
+            model_no.into(),
+        );
+
+        Ok(Self {
             client,
             state: Start {
-                device_info: AppStart::new(device_info),
+                device_info: AppStart::new(device_mfg_info),
             },
-        }
+        })
     }
 
-    pub(crate) async fn create_credentials<C, S>(
+    /// Create the device credentials
+    pub async fn create_credentials<C, S>(
         self,
         ctx: &mut Ctx<'_, C, S>,
     ) -> Result<DeviceCredential<'static>, Error>
@@ -84,7 +107,8 @@ impl<'a> Di<Start<'a>, NeedsAuth> {
         Ok(dc)
     }
 
-    pub(crate) async fn read_existing<C, S>(
+    /// Reads the existing credentials if they exists.
+    pub async fn read_existing<C, S>(
         ctx: &mut Ctx<'_, C, S>,
     ) -> Result<Option<DeviceCredential<'static>>, Error>
     where
@@ -107,7 +131,8 @@ impl<'a> Di<Start<'a>, NeedsAuth> {
     }
 }
 
-pub(crate) struct Start<'a> {
+/// Start state of the FDO protocol
+pub struct Start<'a> {
     device_info: AppStart<'a, MfgInfo<'a>>,
 }
 
@@ -157,7 +182,7 @@ impl Di<Credentials> {
         let device_creds = DeviceCredential {
             dc_active: true,
             dc_prot_ver: PROTOCOL_VERSION,
-            dc_hmac_secret: std::borrow::Cow::Owned(ByteBuf::from(tagged_vec)),
+            dc_hmac_secret: Cow::Owned(ByteBuf::from(tagged_vec)),
             dc_device_info: ov_header.ov_device_info.clone(),
             dc_guid: ov_header.ov_guid,
             dc_rv_info: ov_header.ov_rv_info.clone(),

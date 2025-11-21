@@ -17,7 +17,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![warn(missing_docs, rustdoc::missing_crate_level_docs)]
-// TODO: remove
 #![allow(dead_code)]
 
 //! FIDO Device Onboarding protocol implementation
@@ -28,8 +27,25 @@ pub mod storage;
 
 pub mod di;
 
+pub use astarte_fdo_protocol;
+
+pub use self::crypto::Crypto;
+pub use self::storage::Storage;
+
+/// Context for the FDO protocol
 #[derive(Debug)]
-struct Ctx<'a, C, S> {
+pub struct Ctx<'a, C, S> {
     crypto: &'a mut C,
     storage: &'a mut S,
+}
+
+impl<'a, C, S> Ctx<'a, C, S> {
+    /// Creates a new context.
+    pub fn new(crypto: &'a mut C, storage: &'a mut S) -> Self
+    where
+        C: Crypto,
+        S: Storage,
+    {
+        Self { crypto, storage }
+    }
 }
