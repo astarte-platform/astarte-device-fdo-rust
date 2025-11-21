@@ -124,7 +124,10 @@ impl<S> SoftwareCrypto<S> {
         Ok(())
     }
 
-    async fn signing_key(&self) -> Result<EcdsaKeyPair, Error>
+    async fn signing_key(
+        &self,
+        alg: &'static aws_lc_rs::signature::EcdsaSigningAlgorithm,
+    ) -> Result<EcdsaKeyPair, Error>
     where
         S: Storage,
     {
@@ -136,7 +139,7 @@ impl<S> SoftwareCrypto<S> {
 
         let bytes = Zeroizing::new(bytes);
 
-        let key = EcdsaKeyPair::from_pkcs8(Self::alg(), &bytes).map_err(|err| {
+        let key = EcdsaKeyPair::from_pkcs8(alg, &bytes).map_err(|err| {
             error!(error = %err, "couldn't parse signing key");
 
             Error::new(ErrorKind::Crypto, "to parse signing key")
@@ -270,7 +273,9 @@ where
         })?;
         csr_param.distinguished_name = dn;
 
-        let key = self.signing_key().await?;
+        let key = self
+            .signing_key(&aws_lc_rs::signature::ECDSA_P256_SHA256_ASN1_SIGNING)
+            .await?;
 
         let compat = RcgenKeyCompat::new(&key, &self.rng);
 
@@ -348,7 +353,9 @@ where
         unprotected: HeaderBuilder,
         payload: Vec<u8>,
     ) -> Result<CoseSign1, Error> {
-        let key = self.signing_key().await?;
+        let key = self
+            .signing_key(&aws_lc_rs::signature::ECDSA_P256_SHA256_FIXED_SIGNING)
+            .await?;
 
         let protected = HeaderBuilder::new()
             .algorithm(coset::iana::Algorithm::ES256)
