@@ -26,6 +26,7 @@ defaults:
   run:
     shell: bash
 env:
+  CI: "true"
   CARGO_TERM_COLOR: always
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
@@ -52,8 +53,9 @@ jobs:
           toolchain: nightly
           components: llvm-tools
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: install grcov
-        uses: taiki-e/install-action@grcov
+      - uses: taiki-e/install-action@v2.49.43
+        with:
+          tool: grcov,rustfilt
       - name: Generate coverage
         run: |
           EXPORT_FOR_CI=1 ./scripts/coverage.sh

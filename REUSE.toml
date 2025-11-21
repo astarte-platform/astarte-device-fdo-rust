@@ -19,3 +19,21 @@
 version = 1
 SPDX-PackageName = "Astarte Device FDO"
 SPDX-PackageDownloadLocation = "https://github.com/astarte-platform/astarte-device-fdo-rust"
+
+[[annotations]]
+path = "**/*.snap"
+precedence = "override"
+SPDX-FileCopyrightText = "SECO Mind Srl"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "**/*.snap.cbor"
+precedence = "override"
+SPDX-FileCopyrightText = "SECO Mind Srl"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "assets/examples/*"
+precedence = "override"
+SPDX-FileCopyrightText = "SECO Mind Srl"
+SPDX-License-Identifier = "Apache-2.0"
