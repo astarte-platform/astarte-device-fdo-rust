@@ -1,0 +1,11 @@
+---
+source: astarte-fdo-protocol/src/error.rs
+expression: codes
+---
+couldn't encode
+couldn't decode
+value out of range
+invalid value
+couldn't write
+couldn't complete crypto operation
+error message

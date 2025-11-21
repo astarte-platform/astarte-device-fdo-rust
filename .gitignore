@@ -17,4 +17,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 .pre-commit-config.yaml
+.tmp/
 target/
+.tmp/
