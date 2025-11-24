@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025, 2026 SECO Mind Srl
@@ -16,13 +18,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Install deps"
-description: "Install dependencies needed to run the jobs"
-runs:
-  using: "composite"
-  steps:
-    - name: Install system dependencies
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install libtss2-dev
+set -exEuo pipefail
+
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+cargo build --package e2e-test --features tpm
+
+rsync ./target/debug/e2e-test 192.168.122.140:./e2e-test
+ssh 192.168.122.140 env RUST_LOG="${RUST_LOG:-info}" ./e2e-test \
+    use-tpm to

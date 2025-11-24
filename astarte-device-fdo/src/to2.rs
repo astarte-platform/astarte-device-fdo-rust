@@ -51,13 +51,13 @@ use astarte_fdo_protocol::v101::{Message, NonceTo2ProveDv, NonceTo2ProveOv};
 use astarte_fdo_protocol::v101::{NonceTo2SetupDv, TransportProtocol};
 use astarte_fdo_protocol::Error;
 use coset::iana::EnumI64;
-use coset::{CoseEncrypt0, HeaderBuilder, TaggedCborSerializable};
+use coset::HeaderBuilder;
 use reqwest::header::HeaderValue;
 use tracing::{debug, error, info, instrument, warn};
 use url::{Host, Url};
 
 use crate::client::Client;
-use crate::crypto::Crypto;
+use crate::crypto::{Crypto, DefaultKeyExchange};
 use crate::Ctx;
 
 const MAX_DEVICE_MESSAGE_SIZE: u16 = 0;
@@ -197,7 +197,7 @@ impl To2<Hello> {
     where
         C: Crypto,
     {
-        let nonce = ctx.crypto.create_nonce().await.map(NonceTo2ProveOv)?;
+        let nonce = ctx.crypto.create_nonce().map(NonceTo2ProveOv)?;
 
         Ok(HelloDevice::new(
             MAX_DEVICE_MESSAGE_SIZE,
@@ -275,13 +275,6 @@ impl To2<Prove> {
         let payload = self.state.hdr.payload()?;
         let hdr = self.state.hdr.header()?;
 
-        let enc =
-            CoseEncrypt0::from_tagged_slice(&self.device_creds.dc_hmac_secret).map_err(|err| {
-                error!(error = %err,"coultn't decode device credentials hmac secret");
-
-                Error::new(ErrorKind::Decode, "DeviceCredential hmac secret")
-            })?;
-
         // 1. Verify with CUPH owner key
         C::verify_cose_signature(self.state.rv.to1d(), hdr.pubkey())
             .inspect_err(|_| error!("couldn't verify To1.RvRedirect.to1d signature"))?;
@@ -307,7 +300,10 @@ impl To2<Prove> {
 
         let data = payload.ov_header.bytes()?;
 
-        ctx.crypto.verify_hmac(&enc, &payload.hmac, data).await?;
+        ctx.crypto
+            .verify_hmac(&self.device_creds.dc_hmac_secret, &payload.hmac, data)
+            .await
+            .inspect_err(|_| error!("couldn't verify device credentials hmac"))?;
 
         info!("To2.ProveOvHdr Hmac verified");
 
@@ -532,10 +528,7 @@ impl To2<ProveDv> {
     where
         C: Crypto,
     {
-        let (xb, key) = ctx
-            .crypto
-            .key_exchange(&self.state.x_a_key_exchange)
-            .await?;
+        let (xb, key) = ctx.crypto.key_exchange(&self.state.x_a_key_exchange)?;
 
         info!("To2.ProveDevice key exchange generated");
 
@@ -567,7 +560,7 @@ impl To2<ProveDv> {
             Error::new(ErrorKind::Encode, "EAT")
         })?;
 
-        let nonce_setup_dv = NonceTo2SetupDv(ctx.crypto.create_nonce().await?);
+        let nonce_setup_dv = ctx.crypto.create_nonce().map(NonceTo2SetupDv)?;
 
         let unprotected = HeaderBuilder::new().value(
             EUPH_NONCE,
@@ -602,10 +595,13 @@ where
     nonce_setup_dv: NonceTo2SetupDv,
     prove_dv: ProveDevice,
     client: Client,
-    key: C::KeyExchange,
+    key: DefaultKeyExchange,
     _marker: PhantomData<C>,
 }
 
+// TODO: check for credential reuse and send CRED_REUSE_ERROR, or actually support credential reuse
+//
+// https://fidoalliance.org/specs/FDO/FIDO-Device-Onboard-PS-v1.1-20220419/FIDO-Device-Onboard-PS-v1.1-20220419.html#credreuse
 impl<C> To2<Setup<C>>
 where
     C: Crypto,
@@ -640,15 +636,13 @@ where
 
         info!("To2.SetupDevice done");
 
-        let hmac_secret = CoseEncrypt0::from_tagged_slice(&self.device_creds.dc_hmac_secret)
-            .map_err(|err| {
-                error!(error = %err, "coudln't encode hamc secret");
-
-                Error::new(ErrorKind::Encode, "DeviceCredential hmac secret")
-            })?;
+        // TODO credential reuse check
         let hmac = ctx
             .crypto
-            .hmac(&hmac_secret, self.state.ov_header.bytes()?)
+            .hmac(
+                &self.device_creds.dc_hmac_secret,
+                self.state.ov_header.bytes()?,
+            )
             .await?;
 
         Ok(To2 {
@@ -671,7 +665,7 @@ where
     dv_srv_info_ready: DeviceServiceInfoReady<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_to2_setup_dv: NonceTo2SetupDv,
-    client: Client<HeaderValue, C::KeyExchange>,
+    client: Client<HeaderValue, DefaultKeyExchange>,
     _marker: PhantomData<C>,
 }
 

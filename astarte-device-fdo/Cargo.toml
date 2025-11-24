@@ -25,12 +25,22 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[features]
+default = []
+# Uses the TPM to store secret and sing messages
+tpm = ["dep:tss-esapi", "dep:p256"]
+# Generate binding for the C libraries
+bindgen = ["tss-esapi?/generate-bindings"]
+# Use the vendored version of the C libraries
+vendored = []
+
 [dependencies]
 astarte-fdo-protocol.workspace = true
 aws-lc-rs.workspace = true
 ciborium.workspace = true
 coset.workspace = true
 nix = { workspace = true, features = ["ioctl"] }
+p256 = { workspace = true, optional = true, default-features = false, features = ["ecdsa-core", "alloc"] }
 rand = { workspace = true, default-features = false, features = ["os_rng", "thread_rng"] }
 rcgen = { workspace = true, default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
 reqwest = { workspace = true, default-features = false, features = ["charset", "http2", "system-proxy", "rustls-tls-manual-roots-no-provider"] }
@@ -39,6 +49,9 @@ tokio = { workspace = true, features = ["fs"] }
 tracing.workspace = true
 url.workspace = true
 zeroize.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tss-esapi = { workspace = true, optional = true }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

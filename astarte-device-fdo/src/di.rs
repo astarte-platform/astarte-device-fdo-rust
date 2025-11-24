@@ -34,7 +34,6 @@ use astarte_fdo_protocol::v101::di::set_hmac::SetHmac;
 use astarte_fdo_protocol::v101::hash_hmac::{HMac, Hash};
 use astarte_fdo_protocol::v101::PROTOCOL_VERSION;
 use astarte_fdo_protocol::Error;
-use coset::{CoseEncrypt0, TaggedCborSerializable};
 use reqwest::header::HeaderValue;
 use serde_bytes::ByteBuf;
 use tracing::{debug, error, info};
@@ -165,24 +164,18 @@ impl Di<Credentials> {
     {
         let hash = self.owner_key_hash(ctx)?;
 
-        let hmac_secret = ctx.crypto.hmac_secret().await?;
+        let secret = ctx.crypto.create_hmac_secret().await?;
 
-        let hmac = self.ov_header_hmac(ctx, &hmac_secret).await?;
+        let hmac = self.ov_header_hmac(&secret, ctx).await?;
 
         let ov_header = self.state.creds.ov_header;
 
         info!(guid = %ov_header.ov_guid);
 
-        let tagged_vec = hmac_secret.to_tagged_vec().map_err(|err| {
-            error!(error = %err, "couldn't encode hamc secret");
-
-            Error::new(ErrorKind::Encode, "hamc secret")
-        })?;
-
         let device_creds = DeviceCredential {
             dc_active: true,
             dc_prot_ver: PROTOCOL_VERSION,
-            dc_hmac_secret: Cow::Owned(ByteBuf::from(tagged_vec)),
+            dc_hmac_secret: Cow::Owned(ByteBuf::from(secret)),
             dc_device_info: ov_header.ov_device_info.clone(),
             dc_guid: ov_header.ov_guid,
             dc_rv_info: ov_header.ov_rv_info.clone(),
@@ -219,15 +212,15 @@ impl Di<Credentials> {
 
     async fn ov_header_hmac<C, S>(
         &mut self,
+        secret: &[u8],
         ctx: &mut Ctx<'_, C, S>,
-        hmac_secret: &CoseEncrypt0,
     ) -> Result<HMac<'static>, Error>
     where
         C: Crypto,
     {
         let data = self.state.creds.ov_header.bytes()?;
 
-        let hmac = ctx.crypto.hmac(hmac_secret, data).await?;
+        let hmac = ctx.crypto.hmac(secret, data).await?;
 
         Ok(hmac)
     }

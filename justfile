@@ -26,6 +26,8 @@ export CONTAINER := if which("podman") != "" {
     "podman"
 } else if which("docker") != "" {
     "docker"
+} else if which("podman-remote") != "" {
+    "podman-remote"
 } else {
     error("no container runtime")
 }
@@ -35,7 +37,7 @@ export FDO_DEVICE_GUID := "./.tmp/fdo/device_guid.txt"
 export REPOS := "./.tmp/repos"
 export CONTAINER_CACHE := "./.tmp/cache/containers"
 
-export GO_SERVER_REF := "01a7aa7be9f58f17ad40242380e3e92b169bc307"
+export GO_SERVER_REF := "f6242900a7388523d85ce32f873e9fd76cf2618a"
 
 # Print this help message
 help:
@@ -165,10 +167,33 @@ go-client-basic-onboarding:
 
 # Launch the VM
 [group('vm')]
+vm-setup:
+    ./scripts/vms/vm-setup.sh
+
+# Launch the VM
+[group('vm')]
 vm-launch:
     ./scripts/vms/vish-launch.sh
 
+# Runs FDO in a VM with a TPM
+[group('vm')]
+vm-run: go-server-run vm-client-run
+
+# SSH into the VM and runs the client
+[group('vm')]
+vm-client-run: vm-client-di go-server-to0 vm-client-to
+
 # SSH into the VM and runs the example
 [group('vm')]
-vm-run:
-    ./scripts/run-on-vm.sh
+vm-client-di:
+    ./scripts/vms/run-di.sh
+
+# SSH into the VM and runs the example
+[group('vm')]
+vm-client-to:
+    ./scripts/vms/run-to.sh
+
+# Launch the VM
+[group('vm')]
+vm-clean:
+    ./scripts/vms/vish-destroy.sh

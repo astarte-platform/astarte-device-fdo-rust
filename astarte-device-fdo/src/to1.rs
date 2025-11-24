@@ -292,8 +292,13 @@ impl<'a> To1<'a, Hello> {
         // TODO: impl actual retry
         for _ in 0..10 {
             for i in self.device_creds.dc_rv_info.iter() {
+                // Skip delay on first try
                 if let Some(delay) = delay {
-                    self.wait_for(delay).await?
+                    let delay = self.wait_for(delay).await?;
+
+                    info!(seconds = delay.as_secs(), "waiting before retrying");
+
+                    tokio::time::sleep(delay).await;
                 }
 
                 let Some(rv) = RvDevBuilder::try_from(i)? else {
@@ -326,6 +331,7 @@ impl<'a> To1<'a, Hello> {
     {
         match rv.protocol() {
             RvProtocolValue::Rest => {
+                // Check the HTTPs before the http
                 if let Some(ack) = self.https_instr(ctx, rv).await? {
                     return Ok(Some(ack));
                 }
@@ -475,7 +481,7 @@ impl<'a> To1<'a, Hello> {
     }
 
     #[instrument(skip(self))]
-    async fn wait_for(&self, mut delay: Duration) -> Result<(), Error> {
+    async fn wait_for(&self, mut delay: Duration) -> Result<Duration, Error> {
         // Use millis to produce a non empty range when approximating (secs/100)
         // random range up to 25%
         let add =
@@ -485,21 +491,25 @@ impl<'a> To1<'a, Hello> {
                 Error::new(ErrorKind::OutOfRange, "overflow")
             })?;
 
-        let range = rand::random_range(-add..add);
+        let range = (-add)..add;
 
-        let add = Duration::from_millis(range.unsigned_abs());
+        if range.is_empty() {
+            warn!("empty range, returning delay as is");
 
-        if range.is_negative() {
+            return Ok(delay);
+        }
+
+        let value = rand::random_range(range);
+
+        let add = Duration::from_millis(value.unsigned_abs());
+
+        if value.is_negative() {
             delay -= add;
         } else {
             delay += add;
         }
 
-        info!("waiting for {}s before retrying", delay.as_secs());
-
-        tokio::time::sleep(delay).await;
-
-        Ok(())
+        Ok(delay)
     }
 }
 
