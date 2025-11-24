@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025 SECO Mind Srl
@@ -16,27 +18,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[package]
-name = "e2e-test"
-version.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-publish = false
-repository.workspace = true
-rust-version.workspace = true
+set -exEuo pipefail
 
-[features]
-default = []
-tpm = ["astarte-device-fdo/tpm"]
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-[dependencies]
-astarte-device-fdo.workspace = true
-clap = { workspace = true, features = ["derive"] }
-color-eyre.workspace = true
-eyre.workspace = true
-rustls.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-url.workspace = true
+cargo build --package e2e-test --features tpm
+
+rsync ./target/debug/e2e-test 192.168.122.140:./e2e-test
+ssh 192.168.122.140 env RUST_LOG="${RUST_LOG:-info}" ./e2e-test \
+    use-tpm di --manufacturing-url="http://192.168.122.1:8038" --export-guid ./fdo-guid.txt
+
+scp 192.168.122.140:./fdo-guid.txt "$FDO_DEVICE_GUID"

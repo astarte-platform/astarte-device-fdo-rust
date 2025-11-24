@@ -20,8 +20,6 @@
 
 //! FIDO Device Onboarding protocol implementation
 
-use rustls::ClientConfig;
-
 pub mod client;
 pub mod crypto;
 pub mod storage;
