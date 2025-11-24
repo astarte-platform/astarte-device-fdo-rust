@@ -53,6 +53,26 @@ enum Command {
         #[command(subcommand)]
         proto: Protocol,
     },
+    #[cfg(feature = "tpm")]
+    UseTpm {
+        // TODO: remove
+        #[arg(long, default_value = ".tmp/fdo-astarte")]
+        storage: PathBuf,
+
+        /// TPM connecting string `device:/dev/tpmrm0`
+        #[arg(long)]
+        tpm_connection: Option<String>,
+
+        /// PCRs registers to measure
+        ///
+        /// Defaults to: 0,1,5      Firmware, Options, GPT
+        ///              7          Secure Boot
+        #[arg(long, default_values_t = vec![0,1,5,7])]
+        pcrs: Vec<u8>,
+
+        #[command(subcommand)]
+        proto: Protocol,
+    },
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -153,10 +173,27 @@ async fn main() -> eyre::Result<()> {
     match cli.command {
         Command::PlainFs { storage, proto } => {
             let mut storage = FileStorage::open(storage).await?;
-
             let mut crypto = SoftwareCrypto::create(storage.clone()).await?;
-
             let mut ctx = Ctx::new(&mut crypto, &mut storage);
+            proto.run(&mut ctx).await?;
+        }
+        #[cfg(feature = "tpm")]
+        Command::UseTpm {
+            storage,
+            tpm_connection,
+            pcrs,
+            proto,
+        } => {
+            use astarte_device_fdo::crypto::tpm::Tpm;
+
+            let mut storage = FileStorage::open(storage).await?;
+            let mut tpm = if let Some(tpm_connection) = &tpm_connection {
+                Tpm::with_connection(&storage, tpm_connection, &pcrs).await?
+            } else {
+                Tpm::with_pcrs(&storage, &pcrs).await?
+            };
+
+            let mut ctx = Ctx::new(&mut tpm, &mut storage);
 
             proto.run(&mut ctx).await?;
         }
