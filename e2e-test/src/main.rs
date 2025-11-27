@@ -141,9 +141,26 @@ impl Protocol {
                     bail!("device credentials missing, DI not yet completed");
                 };
 
+                if !dc.dc_active {
+                    info!("device change TO already run to completion");
+
+                    let dv = To2::read_existing(ctx).await?;
+
+                    info!(?dv, "Astarte mod already stored");
+
+                    return Ok(());
+                }
+
+                // TODO: this should be the same from the mfg_info
+                let sn = uuid::Uuid::now_v7();
+
                 let rv = To1::new(&dc).rv_owner(ctx).await?;
 
-                To2::create(dc, rv)?.to2_change(ctx).await?;
+                let dv = To2::create(dc, rv, &sn.to_string())?
+                    .to2_change(ctx)
+                    .await?;
+
+                info!(?dv, "credentials received")
             }
         }
 

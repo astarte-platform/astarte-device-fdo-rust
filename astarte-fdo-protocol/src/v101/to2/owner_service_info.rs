@@ -121,10 +121,10 @@ impl Message for OwnerServiceInfo<'_> {
 
 #[cfg(test)]
 mod tests {
-    use ciborium::Value;
+    use std::borrow::Cow;
+
     use pretty_assertions::assert_eq;
 
-    use crate::utils::CborBstr;
     use crate::v101::service_info::ServiceInfoKv;
 
     use super::*;
@@ -136,7 +136,7 @@ mod tests {
             is_done: false,
             service_info: vec![ServiceInfoKv {
                 service_info_key: "key".into(),
-                service_info_val: CborBstr::new(Value::Bytes(b"value".to_vec())),
+                service_info_val: Cow::Owned(serde_bytes::ByteBuf::from(b"value")),
             }],
         };
 

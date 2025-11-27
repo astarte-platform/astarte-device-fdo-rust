@@ -34,7 +34,6 @@ use astarte_fdo_protocol::v101::key_exchange::XAKeyExchange;
 use astarte_fdo_protocol::v101::ownership_voucher::OvHeader;
 use astarte_fdo_protocol::v101::public_key::PublicKey;
 use astarte_fdo_protocol::v101::rv_to2_addr::{RvTo2Addr, RvTo2AddrEntry};
-use astarte_fdo_protocol::v101::service_info::ServiceInfo;
 use astarte_fdo_protocol::v101::sign_info::{EASigInfo, SigInfo};
 use astarte_fdo_protocol::v101::to1::rv_redirect::RvRedirect;
 use astarte_fdo_protocol::v101::to2::device_service_info::DeviceServiceInfo;
@@ -58,7 +57,9 @@ use url::{Host, Url};
 
 use crate::client::Client;
 use crate::crypto::{Crypto, DefaultKeyExchange};
-use crate::Ctx;
+use crate::di::DEVICE_CREDS;
+use crate::srv_info::{AstarteMod, AstarteModBuilder};
+use crate::{Ctx, Storage};
 
 #[derive(Debug)]
 enum Address {
@@ -142,15 +143,22 @@ impl Address {
     }
 }
 
+const ASTARTE_MOD_PATH: &str = "astarte.mod.cbor";
+
 /// TO2 protocol
-pub struct To2<S> {
+pub struct To2<'a, S> {
     device_creds: DeviceCredential<'static>,
+    sn: &'a str,
     state: S,
 }
 
-impl To2<Hello> {
+impl<'a> To2<'a, Hello> {
     /// Create the TO2 client
-    pub fn create(device_creds: DeviceCredential<'static>, rv: RvRedirect) -> Result<Self, Error> {
+    pub fn create(
+        device_creds: DeviceCredential<'static>,
+        rv: RvRedirect,
+        sn: &'a str,
+    ) -> Result<Self, Error> {
         let addresses = rv
             .rv_to2_addr()
             .and_then(|blob| Address::rv_to2_addr_decode(blob.take_to1d_rv()))?;
@@ -160,6 +168,7 @@ impl To2<Hello> {
         Ok(Self {
             device_creds,
             state,
+            sn,
         })
     }
 
@@ -167,9 +176,10 @@ impl To2<Hello> {
     pub async fn to2_change<C, S>(
         self,
         ctx: &mut Ctx<'_, C, S>,
-    ) -> Result<ServiceInfo<'static>, Error>
+    ) -> Result<AstarteMod<'static>, Error>
     where
         C: Crypto,
+        S: Storage,
     {
         info!("To2 started");
 
@@ -178,11 +188,31 @@ impl To2<Hello> {
         let prove_dv = verify.run(ctx).await?;
         let setup = prove_dv.run(ctx).await?;
         let ready = setup.run(ctx).await?;
-        let srv_info = ready.run(ctx).await?;
+        let done = ready.run(ctx).await?;
+        let amod = done.run(ctx).await?;
 
         info!("To2 finished successfully");
 
-        Ok(srv_info)
+        Ok(amod)
+    }
+
+    /// Read an already stored Astarte mod
+    pub async fn read_existing<C, S>(ctx: &mut Ctx<'_, C, S>) -> Result<AstarteMod<'static>, Error>
+    where
+        S: Storage,
+    {
+        // TODO: decode from reader?
+        let buf = ctx
+            .storage
+            .read(ASTARTE_MOD_PATH)
+            .await
+            .and_then(|buf| buf.ok_or(Error::new(ErrorKind::Invalid, "astarte mod missing")))?;
+
+        ciborium::from_reader(buf.as_slice()).map_err(|error| {
+            error!(%error, "couldn't decode Astarte mod");
+
+            Error::new(ErrorKind::Decode, "couldn't decode Astarte mod")
+        })
     }
 }
 
@@ -192,7 +222,7 @@ pub struct Hello {
     addresses: Vec<Address>,
 }
 
-impl To2<Hello> {
+impl<'a> To2<'a, Hello> {
     async fn hello<C, S>(&self, ctx: &mut Ctx<'_, C, S>) -> Result<HelloDevice<'static>, Error>
     where
         C: Crypto,
@@ -209,7 +239,7 @@ impl To2<Hello> {
         ))
     }
 
-    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<Prove>, Error>
+    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, Prove>, Error>
     where
         C: Crypto,
     {
@@ -219,6 +249,7 @@ impl To2<Hello> {
                     Ok((hello_device, hdr, client)) => {
                         return Ok(To2 {
                             device_creds: self.device_creds,
+                            sn: self.sn,
                             state: Prove {
                                 hello_device,
                                 rv: self.state.rv,
@@ -267,8 +298,8 @@ struct Prove {
     client: Client,
 }
 
-impl To2<Prove> {
-    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<VerifyChain>, Error>
+impl<'a> To2<'a, Prove> {
+    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, VerifyChain>, Error>
     where
         C: Crypto,
     {
@@ -349,6 +380,7 @@ impl To2<Prove> {
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
             state: VerifyChain {
                 hdr,
                 payload,
@@ -370,8 +402,8 @@ struct VerifyChain {
     client: Client,
 }
 
-impl To2<VerifyChain> {
-    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<ProveDv>, Error>
+impl<'a> To2<'a, VerifyChain> {
+    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, ProveDv>, Error>
     where
         C: Crypto,
     {
@@ -441,6 +473,7 @@ impl To2<VerifyChain> {
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
             state: ProveDv {
                 ov_header: self.state.payload.ov_header,
                 // ow_pubkey: variable.pub_key,
@@ -523,8 +556,8 @@ struct ProveDv {
     client: Client,
 }
 
-impl To2<ProveDv> {
-    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<Setup<C>>, Error>
+impl<'a> To2<'a, ProveDv> {
+    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, Setup<C>>, Error>
     where
         C: Crypto,
     {
@@ -573,6 +606,7 @@ impl To2<ProveDv> {
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
             state: Setup {
                 ov_header: self.state.ov_header,
                 nonce_setup_dv,
@@ -602,11 +636,11 @@ where
 // TODO: check for credential reuse and send CRED_REUSE_ERROR, or actually support credential reuse
 //
 // https://fidoalliance.org/specs/FDO/FIDO-Device-Onboard-PS-v1.1-20220419/FIDO-Device-Onboard-PS-v1.1-20220419.html#credreuse
-impl<C> To2<Setup<C>>
+impl<'a, C> To2<'a, Setup<C>>
 where
     C: Crypto,
 {
-    async fn run<S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<DvReady<C>>, Error>
+    async fn run<S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, DvReady>, Error>
     where
         C: Crypto,
     {
@@ -647,10 +681,10 @@ where
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
             state: DvReady {
                 dv_srv_info_ready: DeviceServiceInfoReady::new(Some(hmac), None),
                 client,
-                _marker: PhantomData,
                 nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
                 nonce_to2_setup_dv: self.state.nonce_setup_dv,
             },
@@ -658,22 +692,15 @@ where
     }
 }
 
-struct DvReady<C>
-where
-    C: Crypto,
-{
+struct DvReady {
     dv_srv_info_ready: DeviceServiceInfoReady<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_to2_setup_dv: NonceTo2SetupDv,
     client: Client<HeaderValue, DefaultKeyExchange>,
-    _marker: PhantomData<C>,
 }
 
-impl<C> To2<DvReady<C>>
-where
-    C: Crypto,
-{
-    async fn run<S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<ServiceInfo<'static>, Error>
+impl<'a> To2<'a, DvReady> {
+    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, DvDone>, Error>
     where
         C: Crypto,
     {
@@ -689,9 +716,10 @@ where
         );
 
         // TODO: this part should be improved
-        let device_srv_info = DeviceServiceInfo::example();
+        let device_srv_info = DeviceServiceInfo::example(self.sn);
 
-        let mut srv_info = Vec::new();
+        let mut astarte = AstarteModBuilder::default();
+
         loop {
             info!("To2.DeviceServiceInfo started");
 
@@ -708,20 +736,77 @@ where
                 "To2.OwnerServiceInfo received"
             );
 
-            srv_info.extend(own_srv_info.service_info);
+            astarte.read(own_srv_info.service_info)?;
 
             if own_srv_info.is_done {
                 break;
             }
         }
-
         info!("To2.OwnerServiceInfo done");
+
+        let astarte = astarte.build()?;
+
+        info!("To2.AstarteMod done");
+
+        Ok(To2 {
+            device_creds: self.device_creds,
+            sn: self.sn,
+            state: DvDone {
+                nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
+                nonce_to2_setup_dv: self.state.nonce_to2_setup_dv,
+                astarte_mod: astarte,
+                client: self.state.client,
+            },
+        })
+    }
+}
+
+struct DvDone {
+    nonce_to2_prove_dv: NonceTo2ProveDv,
+    nonce_to2_setup_dv: NonceTo2SetupDv,
+    astarte_mod: AstarteMod<'static>,
+    client: Client<HeaderValue, DefaultKeyExchange>,
+}
+
+impl<'a> To2<'a, DvDone> {
+    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<AstarteMod<'static>, Error>
+    where
+        C: Crypto,
+        S: Storage,
+    {
+        let mut buf = Vec::new();
+
+        ciborium::into_writer(&self.state.astarte_mod, &mut buf).map_err(|error| {
+            error!(%error, "couldn't encode Astarte mod");
+
+            Error::new(ErrorKind::Encode, "Astarte mod")
+        })?;
+
+        // TODO: split device credentials
+        // TODO: encryption of the secret
+        // TODO: separate steps for retry
+        ctx.storage.overwrite(ASTARTE_MOD_PATH, &buf).await?;
 
         let done = self
             .state
             .client
             .send_enc(ctx.crypto, &Done::new(self.state.nonce_to2_prove_dv))
             .await?;
+
+        // TODO: separate store credentials
+        // TODO: update the hmac, rvinfo, guid, ovpubkey
+        // TODO: add a message to permit multiple FDO
+        // TODO: connect to astarte before chainging this
+        self.device_creds.dc_active = false;
+
+        buf.clear();
+        ciborium::into_writer(&self.device_creds, &mut buf).map_err(|err| {
+            error!(error = %err, "couldn't encode device credentials");
+
+            Error::new(ErrorKind::Encode, "device credentials")
+        })?;
+
+        ctx.storage.overwrite(DEVICE_CREDS, &buf).await?;
 
         if *done.nonce() != self.state.nonce_to2_setup_dv {
             return Err(Error::new(
@@ -732,6 +817,6 @@ where
 
         info!("To2.Done finished");
 
-        Ok(srv_info)
+        Ok(self.state.astarte_mod)
     }
 }
