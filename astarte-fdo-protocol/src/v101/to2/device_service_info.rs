@@ -32,12 +32,13 @@
 //! Sends as many Device to Owner ServiceInfo entries as will conveniently fit into a message, based
 //! on protocol and Device constraints. This message is part of a loop with TO2.OwnerServiceInfo.
 
+use std::borrow::Cow;
 use std::io::Write;
 
+use coset::CborSerializable;
 use serde::{Deserialize, Serialize};
 
 use crate::error::ErrorKind;
-use crate::utils::CborBstr;
 use crate::v101::service_info::{ServiceInfo, ServiceInfoKv};
 use crate::v101::{ClientMessage, Message, Msgtype};
 use crate::Error;
@@ -61,7 +62,7 @@ impl DeviceServiceInfo<'_> {
     // TODO: this is not neither by us nor Astarte, but we still send it to be spec complient
     //       We should change this to measure the correct values to send.
     /// Example bogus info
-    pub fn example() -> Self {
+    pub fn example(sn: &str) -> Self {
         // devmod:active 	Required 	bool (True) 	Indicates the module is active. Devmod is required on all devices
         // devmod:os 	Required 	tstr 	OS name (e.g., Linux)
         // devmod:arch 	Required 	tstr 	Architecture name / instruction set (e.g., X86_64)
@@ -83,60 +84,96 @@ impl DeviceServiceInfo<'_> {
             service_info: vec![
                 ServiceInfoKv {
                     service_info_key: "devmod:active".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Bool(true)),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Bool(true).to_vec().unwrap().into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:os".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Text("Linux".to_string())),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("Linux".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:arch".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Text(
-                        std::env::consts::ARCH.to_string(),
-                    )),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text(std::env::consts::ARCH.to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:version".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Text(
-                        "Ubuntu* 16.0.4LTS".to_string(),
-                    )),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("Ubuntu* 16.0.4LTS".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:device".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Text(
-                        "fdo-astarte".to_string(),
-                    )),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("fdo-astarte".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:sn".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Text("DEADBEEF".to_string())),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text(sn.to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:sep".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Text(":".to_string())),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text(":".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:bin".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Text(
-                        std::env::consts::ARCH.to_string(),
-                    )),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text(std::env::consts::ARCH.to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:nummodules".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Integer(6.into())),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Integer(6.into()).to_vec().unwrap().into(),
+                    ),
                 },
                 ServiceInfoKv {
                     service_info_key: "devmod:modules".into(),
-                    service_info_val: CborBstr::new(ciborium::Value::Array(vec![
-                        ciborium::Value::Integer(0.into()),
-                        ciborium::Value::Integer(6.into()),
-                        ciborium::Value::Text("devmod:os".to_string()),
-                        ciborium::Value::Text("devmod:arch".to_string()),
-                        ciborium::Value::Text("devmod:version".to_string()),
-                        ciborium::Value::Text("devmod:device".to_string()),
-                        ciborium::Value::Text("devmod:sep".to_string()),
-                        ciborium::Value::Text("devmod:bin".to_string()),
-                    ])),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Array(vec![
+                            ciborium::Value::Integer(0.into()),
+                            ciborium::Value::Integer(6.into()),
+                            ciborium::Value::Text("devmod:os".to_string()),
+                            ciborium::Value::Text("devmod:arch".to_string()),
+                            ciborium::Value::Text("devmod:version".to_string()),
+                            ciborium::Value::Text("devmod:device".to_string()),
+                            ciborium::Value::Text("devmod:sep".to_string()),
+                            ciborium::Value::Text("devmod:bin".to_string()),
+                        ])
+                        .to_vec()
+                        .unwrap()
+                        .into(),
+                    ),
                 },
             ],
         }
@@ -206,7 +243,7 @@ mod tests {
 
     #[test]
     fn device_service_info_roundtrip() {
-        let dv = DeviceServiceInfo::example();
+        let dv = DeviceServiceInfo::example("device-sn");
 
         let mut buf = Vec::new();
 

@@ -26,10 +26,12 @@
 
 use std::borrow::Cow;
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
-use crate::utils::CborBstr;
+use crate::error::ErrorKind;
+use crate::Error;
 
 /// ```cddl
 /// ServiceInfo = [
@@ -47,7 +49,32 @@ pub type ServiceInfo<'a> = Vec<ServiceInfoKv<'a>>;
 pub struct ServiceInfoKv<'a> {
     pub(crate) service_info_key: Cow<'a, str>,
     // TODO: make generic
-    pub(crate) service_info_val: CborBstr<'a, ciborium::Value>,
+    pub(crate) service_info_val: Cow<'a, Bytes>,
+}
+
+impl<'a> ServiceInfoKv<'a> {
+    /// Return the service info key
+    pub fn key(&self) -> &str {
+        &self.service_info_key
+    }
+
+    /// Return the service info value
+    pub fn value_as_bytes(&self) -> &Bytes {
+        self.service_info_val.as_ref()
+    }
+
+    /// Return the service info value
+    pub fn value<T>(&self) -> Result<T, Error>
+    where
+        T: DeserializeOwned,
+    {
+        ciborium::from_reader::<T, &[u8]>(self.service_info_val.as_ref()).map_err(|error| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(%error, "couldn't decode service info value");
+
+            Error::new(ErrorKind::Decode, "service info value")
+        })
+    }
 }
 
 impl Serialize for ServiceInfoKv<'_> {
@@ -215,6 +242,7 @@ pub enum StrOrBstr<'a> {
 #[cfg(test)]
 mod tests {
 
+    use coset::CborSerializable;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -225,7 +253,12 @@ mod tests {
             ServiceInfo::new(),
             vec![ServiceInfoKv {
                 service_info_key: "devmod:os".into(),
-                service_info_val: CborBstr::new(ciborium::Value::Text("Linux".to_string())),
+                service_info_val: Cow::Owned(
+                    ciborium::Value::Text("Linux".to_string())
+                        .to_vec()
+                        .unwrap()
+                        .into(),
+                ),
             }],
         ];
 

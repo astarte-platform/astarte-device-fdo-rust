@@ -25,6 +25,7 @@ pub mod crypto;
 pub mod storage;
 
 pub mod di;
+pub mod srv_info;
 pub mod to1;
 pub mod to2;
 
