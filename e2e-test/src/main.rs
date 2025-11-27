@@ -23,9 +23,10 @@ use astarte_device_fdo::client::Client;
 use astarte_device_fdo::crypto::software::SoftwareCrypto;
 use astarte_device_fdo::crypto::Crypto;
 use astarte_device_fdo::di::Di;
+use astarte_device_fdo::srv_info::{AstarteMod, AstarteModBuilder, SkipServiceInfo};
 use astarte_device_fdo::storage::{FileStorage, Storage};
 use astarte_device_fdo::to1::To1;
-use astarte_device_fdo::to2::To2;
+use astarte_device_fdo::to2::{Hello, To2};
 use astarte_device_fdo::Ctx;
 use clap::{Parser, Subcommand};
 use eyre::{bail, eyre};
@@ -92,7 +93,10 @@ enum Protocol {
         #[arg(long)]
         export_guid: Option<PathBuf>,
     },
-    To {},
+    To {
+        #[arg(long)]
+        astarte_mod: bool,
+    },
 }
 
 impl Protocol {
@@ -136,14 +140,41 @@ impl Protocol {
                     info!(path = %path.display(), "guid exported");
                 }
             }
-            Protocol::To {} => {
+            Protocol::To { astarte_mod } => {
                 let Some(dc) = Di::read_existing(ctx).await? else {
                     bail!("device credentials missing, DI not yet completed");
                 };
 
+                if !dc.dc_active {
+                    info!("device change TO already run to completion");
+
+                    let dv = To2::<'_, AstarteModBuilder, Hello>::read_existing(ctx).await?;
+
+                    info!(?dv, "Astarte mod already stored");
+
+                    return Ok(());
+                }
+
+                // TODO: this should be the same from the mfg_info
+                let sn = uuid::Uuid::now_v7().to_string();
+
                 let rv = To1::new(&dc).rv_owner(ctx).await?;
 
-                To2::create(dc, rv)?.to2_change(ctx).await?;
+                if astarte_mod {
+                    let (to2, srv_mod) = To2::create(dc, rv, &sn, AstarteMod::builder())?
+                        .to2_change(ctx)
+                        .await?;
+
+                    info!(?srv_mod, "credentials received");
+
+                    to2.done(ctx).await?;
+                } else {
+                    let (to2, ()) = To2::create(dc, rv, &sn, SkipServiceInfo::default())?
+                        .to2_change(ctx)
+                        .await?;
+
+                    to2.done(ctx).await?;
+                }
             }
         }
 
