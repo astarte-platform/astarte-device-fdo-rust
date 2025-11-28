@@ -131,7 +131,7 @@ go-server-stop:
 # Check health of servers
 [group('server')]
 go-server-health:
-    ./scripts/common/try-curl.sh http://localhost:8041/health  # Rendezvous
+    ./scripts/common/try-curl.sh http://localhost:8041/health # Rendezvous
     ./scripts/common/try-curl.sh http://localhost:8038/health  # Manufacturing
     ./scripts/common/try-curl.sh http://localhost:8043/health  # Owner
 
@@ -249,3 +249,32 @@ astarte-healty:
 [group('astarte')]
 astarte-clean:
     -./scripts/astarte/clean.sh
+
+####
+# Clea dev
+#
+#
+
+export CLEA_DEV_RV_DOMAIN := x"fdo-rendezvous.$CLEA_DEV_BASE"
+export CLEA_DEV_RV := x"https://fdo-rendezvous.$CLEA_DEV_BASE"
+export CLEA_DEV_API := x"https://api.astarte.$CLEA_DEV_BASE"
+
+# Setups clea-dev
+[group('clea-dev')]
+clea-dev-setup: go-server-setup clea-dev-healty
+
+# Run FDO against clea-dev
+[group('clea-dev')]
+clea-dev-run: go-server-start clea-dev-rv-info client-di clea-dev-send-to0 client-to
+
+[group('clea-dev')]
+clea-dev-rv-info:
+    ./scripts/clea-dev/create-rv-info.sh
+
+[group('clea-dev')]
+clea-dev-send-to0:
+    ./scripts/clea-dev/send-to0.sh
+
+[group('clea-dev')]
+clea-dev-healty:
+    ./scripts/clea-dev/healthy.sh
