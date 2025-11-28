@@ -443,7 +443,7 @@ impl<'a> To1<'a, Hello> {
     where
         C: Crypto,
     {
-        let mut client = Client::create(url)?;
+        let mut client = Client::create(url, ctx.tls().clone())?;
 
         let sg_type = ctx.crypto.sign_info_type();
 
@@ -466,7 +466,7 @@ impl<'a> To1<'a, Hello> {
     where
         C: Crypto,
     {
-        let mut client = Client::create(url)?;
+        let mut client = Client::create(url, ctx.tls().clone())?;
 
         let sg_type = ctx.crypto.sign_info_type();
 

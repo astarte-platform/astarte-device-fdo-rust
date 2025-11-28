@@ -37,7 +37,7 @@ export FDO_DEVICE_GUID := "./.tmp/fdo/device_guid.txt"
 export REPOS := "./.tmp/repos"
 export CONTAINER_CACHE := "./.tmp/cache/containers"
 
-export GO_SERVER_REF := "f6242900a7388523d85ce32f873e9fd76cf2618a"
+export GO_SERVER_REF := "ade68cda47d4281b8bea8248f45c43cbe1f8bca7"
 
 # Print this help message
 help:
