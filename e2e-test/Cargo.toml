@@ -27,16 +27,24 @@ repository.workspace = true
 rust-version.workspace = true
 
 [features]
-default = []
+default = ["platform-tls"]
+# Uses the TPM for cryptography
 tpm = ["astarte-device-fdo/tpm"]
+# Use the Platform Verifier for TLS
+platform-tls = ["dep:rustls-platform-verifier"]
+# Use an embedded CA chain for TLS
+webpki-roots = ["dep:webpki-roots"]
 
 [dependencies]
 astarte-device-fdo.workspace = true
+cfg-if.workspace = true
 clap = { workspace = true, features = ["derive"] }
 color-eyre.workspace = true
 eyre.workspace = true
 rustls.workspace = true
+rustls-platform-verifier = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url.workspace = true
+webpki-roots = { workspace = true, optional = true }
