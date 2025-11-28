@@ -117,7 +117,7 @@ impl Protocol {
                 model_no,
                 export_guid,
             } => {
-                let client = Client::create(manufacturing_url)?;
+                let client = Client::create(manufacturing_url, ctx.tls().clone())?;
 
                 let di = Di::create(ctx, client, &model_no, &serial_no).await?;
 
@@ -170,11 +170,24 @@ async fn main() -> eyre::Result<()> {
         .install_default()
         .map_err(|_| eyre!("couldn't install crypto provider"))?;
 
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "platform-tls")] {
+            use rustls_platform_verifier::BuilderVerifierExt;
+            let tls = rustls::ClientConfig::builder().with_platform_verifier()?.with_no_client_auth();
+        } else if #[cfg(feature = "webpki-roots")] {
+            let tls = rustls::ClientConfig::builder().with_root_certificates(root_store).with_no_client_auth();
+        } else {
+            compile_error!("select one betwee platform-tls and webpki-roots for TLS")
+        }
+    };
+
+    let tls = tls;
+
     match cli.command {
         Command::PlainFs { storage, proto } => {
             let mut storage = FileStorage::open(storage).await?;
             let mut crypto = SoftwareCrypto::create(storage.clone()).await?;
-            let mut ctx = Ctx::new(&mut crypto, &mut storage);
+            let mut ctx = Ctx::new(&mut crypto, &mut storage, tls);
             proto.run(&mut ctx).await?;
         }
         #[cfg(feature = "tpm")]
@@ -193,7 +206,7 @@ async fn main() -> eyre::Result<()> {
                 Tpm::with_pcrs(&storage, &pcrs).await?
             };
 
-            let mut ctx = Ctx::new(&mut tpm, &mut storage);
+            let mut ctx = Ctx::new(&mut tpm, &mut storage, tls);
 
             proto.run(&mut ctx).await?;
         }
