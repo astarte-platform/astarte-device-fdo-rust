@@ -23,22 +23,38 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-mf_info='[
-  {"dns":"fdo-rendezvous.clea-dev.midgar.services","device_port":"443","owner_port":"443","protocol":"https","delay_seconds":10}
-]'
-ow_info='[
-  {"dns":"localhost","port":"8043","protocol":"http","ip":"127.0.0.1","delay_seconds":10}
-]'
+if [ -z "${1:-}" ]; then
+    GUID=$(cat "$FDO_DEVICE_GUID")
+else
+    GUID=$1
+fi
 
-try_curl() {
-    curl --fail --location --retry 3 --retry-delay 2 --retry-connrefused "$@"
-}
+if [[ -z $GUID ]]; then
+    echo "guid is unset"
+    exit 1
+fi
 
-# Tries to update or create the info
-send_req() {
-    try_curl --request PUT "$1" --header 'Content-Type: text/plain' --data-raw "$2" ||
-        try_curl --request POST "$1" --header 'Content-Type: text/plain' --data-raw "$2"
-}
+voucherdir="$FDODIR/ov/ownervoucher"
 
-send_req 'http://localhost:8038/api/v1/rvinfo' "$mf_info"
-send_req 'http://localhost:8043/api/v1/owner/redirect' "$ow_info"
+mkdir -p "$voucherdir"
+
+curl --fail -v "http://localhost:8038/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
+
+voucher=$(cat "$voucherdir/$GUID")
+private_key=$(
+    openssl ec -in .tmp/fdo/certs/owner.key -inform der -out - -outform pem
+)
+
+json=$(
+    jq --null-input \
+        --arg voucher "$voucher" \
+        --arg key "$private_key" \
+        '{"data":{"ownership_voucher":$voucher,"private_key":$key}}'
+)
+
+
+
+curl --fail \
+    --header "Authorization: Bearer $CLEA_DEV_REALM_TOKEN" \
+    --request POST "$CLEA_DEV_API/pairing/v1/$CLEA_DEV_REALM/ownership" \
+    --json "$json"
