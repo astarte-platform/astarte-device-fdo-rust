@@ -23,22 +23,9 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-mf_info='[
-  {"dns":"fdo-rendezvous.clea-dev.midgar.services","device_port":"443","owner_port":"443","protocol":"https","delay_seconds":10}
-]'
-ow_info='[
-  {"dns":"localhost","port":"8043","protocol":"http","ip":"127.0.0.1","delay_seconds":10}
-]'
+./scripts/common/try-curl.sh "$CLEA_DEV_API/appengine/health"
+./scripts/common/try-curl.sh "$CLEA_DEV_API/pairing/health"
+./scripts/common/try-curl.sh "$CLEA_DEV_API/realmmanagement/health"
+./scripts/common/try-curl.sh "$CLEA_DEV_API/housekeeping/health"
 
-try_curl() {
-    curl --fail --location --retry 3 --retry-delay 2 --retry-connrefused "$@"
-}
-
-# Tries to update or create the info
-send_req() {
-    try_curl --request PUT "$1" --header 'Content-Type: text/plain' --data-raw "$2" ||
-        try_curl --request POST "$1" --header 'Content-Type: text/plain' --data-raw "$2"
-}
-
-send_req 'http://localhost:8038/api/v1/rvinfo' "$mf_info"
-send_req 'http://localhost:8043/api/v1/owner/redirect' "$ow_info"
+./scripts/common/try-curl.sh "$CLEA_DEV_RV/health"
