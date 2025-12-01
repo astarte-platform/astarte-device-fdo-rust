@@ -21,7 +21,7 @@
 use std::fmt::Display;
 
 /// Error for the protocol
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
     kind: ErrorKind,
     ctx: &'static str,
@@ -78,7 +78,7 @@ impl Display for ErrorKind {
             ErrorKind::Write => write!(f, "couldn't write"),
             ErrorKind::Crypto => write!(f, "couldn't complete crypto operation"),
             ErrorKind::Io => write!(f, "couldn't complete io operation"),
-            ErrorKind::Message => write!(f, "couldn't process message"),
+            ErrorKind::Message => write!(f, "couldn't send request"),
         }
     }
 }

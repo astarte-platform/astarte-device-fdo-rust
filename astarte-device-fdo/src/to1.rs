@@ -44,13 +44,14 @@ use astarte_fdo_protocol::v101::{DnsAddress, IpAddress};
 use astarte_fdo_protocol::v101::{NonceTo1Proof, Port};
 use astarte_fdo_protocol::Error;
 use coset::HeaderBuilder;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, warn};
 use url::{Host, Url};
 use zeroize::Zeroizing;
 
-use crate::client::Client;
+use crate::client::http::{AuthClient, InitialClient};
 use crate::crypto::Crypto;
 use crate::storage::Storage;
+use crate::time::add_random_jitter;
 use crate::Ctx;
 
 /// From spec example
@@ -294,7 +295,7 @@ impl<'a> To1<'a, Hello> {
             for i in self.device_creds.dc_rv_info.iter() {
                 // Skip delay on first try
                 if let Some(delay) = delay {
-                    let delay = self.wait_for(delay).await?;
+                    let delay = add_random_jitter(delay);
 
                     info!(seconds = delay.as_secs(), "waiting before retrying");
 
@@ -439,22 +440,22 @@ impl<'a> To1<'a, Hello> {
         &self,
         ctx: &mut Ctx<'_, C, S>,
         url: Url,
-    ) -> Result<(HelloRvAck<'static>, Client), Error>
+    ) -> Result<(HelloRvAck<'static>, AuthClient), Error>
     where
         C: Crypto,
     {
-        let mut client = Client::create(url, ctx.tls().clone())?;
+        let mut client = InitialClient::create(url, ctx.tls().clone())?;
 
         let sg_type = ctx.crypto.sign_info_type();
 
         let (ack, auth) = client
-            .init(&HelloRv::new(
+            .send_without_retry(&HelloRv::new(
                 self.device_creds.dc_guid,
                 EASigInfo(SigInfo::new(sg_type)),
             ))
             .await?;
 
-        Ok((ack, client.set_auth(auth)))
+        Ok((ack, client.into_session(auth)))
     }
 
     // TODO: check the certificate validity following the spec
@@ -462,59 +463,27 @@ impl<'a> To1<'a, Hello> {
         &self,
         ctx: &mut Ctx<'_, C, S>,
         url: Url,
-    ) -> Result<(HelloRvAck<'static>, Client), Error>
+    ) -> Result<(HelloRvAck<'static>, AuthClient), Error>
     where
         C: Crypto,
     {
-        let mut client = Client::create(url, ctx.tls().clone())?;
+        let mut client = InitialClient::create(url, ctx.tls().clone())?;
 
         let sg_type = ctx.crypto.sign_info_type();
 
         let (ack, auth) = client
-            .init(&HelloRv::new(
+            .send_without_retry(&HelloRv::new(
                 self.device_creds.dc_guid,
                 EASigInfo(SigInfo::new(sg_type)),
             ))
             .await?;
 
-        Ok((ack, client.set_auth(auth)))
-    }
-
-    #[instrument(skip(self))]
-    async fn wait_for(&self, mut delay: Duration) -> Result<Duration, Error> {
-        // Use millis to produce a non empty range when approximating (secs/100)
-        // random range up to 25%
-        let add =
-            i64::try_from(delay.as_millis().div_euclid(100).saturating_mul(25)).map_err(|err| {
-                error!(error = %err, "couldn't calculate the range from delay");
-
-                Error::new(ErrorKind::OutOfRange, "overflow")
-            })?;
-
-        let range = (-add)..add;
-
-        if range.is_empty() {
-            warn!("empty range, returning delay as is");
-
-            return Ok(delay);
-        }
-
-        let value = rand::random_range(range);
-
-        let add = Duration::from_millis(value.unsigned_abs());
-
-        if value.is_negative() {
-            delay -= add;
-        } else {
-            delay += add;
-        }
-
-        Ok(delay)
+        Ok((ack, client.into_session(auth)))
     }
 }
 
 struct Ack {
-    client: Client,
+    client: AuthClient,
     nonce: NonceTo1Proof,
 }
 
@@ -560,13 +529,13 @@ impl<'a> To1<'a, Ack> {
 }
 
 struct Prove {
-    client: Client,
+    client: AuthClient,
     proof: ProveToRv,
 }
 
 impl<'a> To1<'a, Prove> {
     async fn run(mut self) -> Result<RvRedirect, Error> {
-        let msg = self.state.client.send_msg(&self.state.proof).await?;
+        let msg = self.state.client.send(&self.state.proof).await?;
 
         info!("To1.ProveToRv sent");
 

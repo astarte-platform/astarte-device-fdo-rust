@@ -19,7 +19,7 @@
 use std::path::PathBuf;
 
 use astarte_device_fdo::astarte_fdo_protocol::utils::Hex;
-use astarte_device_fdo::client::Client;
+use astarte_device_fdo::client::http::InitialClient;
 use astarte_device_fdo::crypto::software::SoftwareCrypto;
 use astarte_device_fdo::crypto::Crypto;
 use astarte_device_fdo::di::Di;
@@ -121,7 +121,7 @@ impl Protocol {
                 model_no,
                 export_guid,
             } => {
-                let client = Client::create(manufacturing_url, ctx.tls().clone())?;
+                let client = InitialClient::create(manufacturing_url, ctx.tls().clone())?;
 
                 let di = Di::create(ctx, client, &model_no, &serial_no).await?;
 

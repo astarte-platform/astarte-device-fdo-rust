@@ -51,12 +51,11 @@ use astarte_fdo_protocol::v101::{NonceTo2SetupDv, TransportProtocol};
 use astarte_fdo_protocol::Error;
 use coset::iana::EnumI64;
 use coset::HeaderBuilder;
-use reqwest::header::HeaderValue;
 use tracing::{debug, error, info, instrument, warn};
 use url::{Host, Url};
 
-use crate::client::Client;
-use crate::crypto::{Crypto, DefaultKeyExchange};
+use crate::client::http::{AuthClient, EncryptedClient, InitialClient};
+use crate::crypto::Crypto;
 use crate::di::DEVICE_CREDS;
 use crate::srv_info::ServiceInfoDecode;
 use crate::{Ctx, Storage};
@@ -276,19 +275,19 @@ impl<'a, D> To2<'a, D, Hello> {
         &self,
         ctx: &mut Ctx<'_, C, S>,
         base_url: &Url,
-    ) -> Result<(HelloDevice<'static>, ProveOvHdr, Client), Error>
+    ) -> Result<(HelloDevice<'static>, ProveOvHdr, AuthClient), Error>
     where
         C: Crypto,
     {
-        let mut client = Client::create(base_url.clone(), ctx.tls.clone())?;
+        let mut client = InitialClient::create(base_url.clone(), ctx.tls.clone())?;
 
         let hello = self.hello(ctx).await?;
 
-        let (pv_ov, auth) = client.init(&hello).await?;
+        let (pv_ov, auth) = client.send(&hello).await?;
 
         info!("To2.HelloDevice sent");
 
-        Ok((hello, pv_ov, client.set_auth(auth)))
+        Ok((hello, pv_ov, client.into_session(auth)))
     }
 }
 
@@ -296,7 +295,7 @@ struct Prove {
     hello_device: HelloDevice<'static>,
     rv: RvRedirect,
     hdr: ProveOvHdr,
-    client: Client,
+    client: AuthClient,
 }
 
 impl<'a, D> To2<'a, D, Prove> {
@@ -363,7 +362,7 @@ impl<'a, D> To2<'a, D, Prove> {
                 None,
             );
 
-            self.state.client.send_err(&err_msg).await;
+            self.state.client.send_err(&err_msg).await?;
 
             return Err(err);
         }
@@ -401,7 +400,7 @@ struct VerifyChain {
     // TODO: do we need to check this?
     // dev_chain_hash: Hash<'static>,
     // dev_chain_hash: Hash<'static>,
-    client: Client,
+    client: AuthClient,
 }
 
 impl<'a, D> To2<'a, D, VerifyChain> {
@@ -443,7 +442,7 @@ impl<'a, D> To2<'a, D, VerifyChain> {
             let entry = self
                 .state
                 .client
-                .send_msg(&GetOvNextEntry::new(ov_entry_num))
+                .send(&GetOvNextEntry::new(ov_entry_num))
                 .await?;
 
             info!("To2.GetOvNextEntry sent");
@@ -556,7 +555,7 @@ struct ProveDv {
     // owner_sing_info: EBSigInfo<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     x_a_key_exchange: XAKeyExchange<'static>,
-    client: Client,
+    client: AuthClient,
 }
 
 impl<'a, D> To2<'a, D, ProveDv> {
@@ -615,8 +614,7 @@ impl<'a, D> To2<'a, D, ProveDv> {
                 ov_header: self.state.ov_header,
                 nonce_setup_dv,
                 prove_dv,
-                client: self.state.client,
-                key,
+                client: self.state.client.into_encrypted(key),
                 _marker: PhantomData,
                 nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
             },
@@ -632,8 +630,7 @@ where
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_setup_dv: NonceTo2SetupDv,
     prove_dv: ProveDevice,
-    client: Client,
-    key: DefaultKeyExchange,
+    client: EncryptedClient,
     _marker: PhantomData<C>,
 }
 
@@ -648,11 +645,10 @@ where
     where
         C: Crypto,
     {
-        // TODO: save the new setup to create the new device credentials
         let setup_dv = self
             .state
             .client
-            .init_enc::<_, C>(&self.state.key, &self.state.prove_dv)
+            .send_plain::<C, _>(&self.state.prove_dv)
             .await?;
 
         info!("To2.ProveDevice succeeded");
@@ -669,8 +665,6 @@ where
             ));
         }
         info!("To2.SetupDevice nonce verified");
-
-        let client = self.state.client.set_enckey(self.state.key);
 
         info!("To2.SetupDevice done");
 
@@ -689,7 +683,7 @@ where
             service_info: self.service_info,
             state: DvReady {
                 dv_srv_info_ready: DeviceServiceInfoReady::new(Some(hmac), None),
-                client,
+                client: self.state.client,
                 nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
                 nonce_to2_setup_dv: self.state.nonce_setup_dv,
             },
@@ -701,7 +695,7 @@ struct DvReady {
     dv_srv_info_ready: DeviceServiceInfoReady<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_to2_setup_dv: NonceTo2SetupDv,
-    client: Client<HeaderValue, DefaultKeyExchange>,
+    client: EncryptedClient,
 }
 
 impl<'a, D> To2<'a, D, DvReady> {
@@ -716,7 +710,7 @@ impl<'a, D> To2<'a, D, DvReady> {
         let own_srv_info_ready = self
             .state
             .client
-            .send_enc(ctx.crypto, &self.state.dv_srv_info_ready)
+            .send(ctx, &self.state.dv_srv_info_ready)
             .await?;
 
         info!(
@@ -732,11 +726,7 @@ impl<'a, D> To2<'a, D, DvReady> {
         loop {
             info!("To2.DeviceServiceInfo started");
 
-            let own_srv_info = self
-                .state
-                .client
-                .send_enc(ctx.crypto, &device_srv_info)
-                .await?;
+            let own_srv_info = self.state.client.send(ctx, &device_srv_info).await?;
 
             debug!(?own_srv_info, "Owner service info");
 
@@ -777,7 +767,7 @@ impl<'a, D> To2<'a, D, DvReady> {
 pub struct DvDone {
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_to2_setup_dv: NonceTo2SetupDv,
-    client: Client<HeaderValue, DefaultKeyExchange>,
+    client: EncryptedClient,
 }
 
 impl<'a, D> To2<'a, D, DvDone> {
@@ -792,7 +782,7 @@ impl<'a, D> To2<'a, D, DvDone> {
         let done = self
             .state
             .client
-            .send_enc(ctx.crypto, &Done::new(self.state.nonce_to2_prove_dv))
+            .send(ctx, &Done::new(self.state.nonce_to2_prove_dv))
             .await?;
 
         // TODO: separate store credentials

@@ -34,11 +34,10 @@ use astarte_fdo_protocol::v101::di::set_hmac::SetHmac;
 use astarte_fdo_protocol::v101::hash_hmac::{HMac, Hash};
 use astarte_fdo_protocol::v101::PROTOCOL_VERSION;
 use astarte_fdo_protocol::Error;
-use reqwest::header::HeaderValue;
 use serde_bytes::ByteBuf;
 use tracing::{debug, error, info};
 
-use crate::client::{Client, NeedsAuth};
+use crate::client::http::{AuthClient, InitialClient};
 use crate::crypto::Crypto;
 use crate::storage::Storage;
 use crate::Ctx;
@@ -46,16 +45,15 @@ use crate::Ctx;
 pub(crate) const DEVICE_CREDS: &str = "device_creds.cbor";
 
 /// Di protocol.
-pub struct Di<T, A = HeaderValue> {
-    client: Client<A>,
-    state: T,
+pub struct Di<S> {
+    state: S,
 }
 
-impl<'a> Di<Start<'a>, NeedsAuth> {
+impl<'a> Di<Start<'a>> {
     /// Create the client to start the Di protocol
     pub async fn create<C, S>(
         ctx: &mut Ctx<'_, C, S>,
-        client: Client<NeedsAuth>,
+        client: InitialClient,
         model_no: &'a str,
         serial_no: &'a str,
     ) -> Result<Self, Error>
@@ -73,9 +71,9 @@ impl<'a> Di<Start<'a>, NeedsAuth> {
         );
 
         Ok(Self {
-            client,
             state: Start {
                 device_info: AppStart::new(device_mfg_info),
+                client,
             },
         })
     }
@@ -133,28 +131,27 @@ impl<'a> Di<Start<'a>, NeedsAuth> {
 /// Start state of the FDO protocol
 pub struct Start<'a> {
     device_info: AppStart<'a, MfgInfo<'a>>,
+    client: InitialClient,
 }
 
-impl<'a> Di<Start<'a>, NeedsAuth> {
+impl<'a> Di<Start<'a>> {
     async fn run(mut self) -> Result<Di<Credentials>, Error> {
-        let (set_creds, auth) = self.client.init(&self.state.device_info).await?;
+        let (set_creds, auth) = self.state.client.send(&self.state.device_info).await?;
 
         info!("DI.AppStart successful");
 
         Ok(Di {
-            client: self.client.set_auth(auth),
-            state: Credentials::new(set_creds),
+            state: Credentials {
+                creds: set_creds,
+                client: self.state.client.into_session(auth),
+            },
         })
     }
 }
 
 pub(crate) struct Credentials {
     creds: SetCredentials<'static>,
-}
-impl Credentials {
-    fn new(set_creds: SetCredentials<'static>) -> Self {
-        Self { creds: set_creds }
-    }
+    client: AuthClient,
 }
 
 impl Di<Credentials> {
@@ -185,10 +182,10 @@ impl Di<Credentials> {
         info!("DI.SetCredentials successful");
 
         Ok(Di {
-            client: self.client,
             state: Hmac {
                 hmac: SetHmac { hmac },
                 device_creds,
+                client: self.state.client,
             },
         })
     }
@@ -229,6 +226,7 @@ impl Di<Credentials> {
 pub(crate) struct Hmac {
     hmac: SetHmac<'static>,
     device_creds: DeviceCredential<'static>,
+    client: AuthClient,
 }
 
 impl Di<Hmac> {
@@ -239,7 +237,7 @@ impl Di<Hmac> {
     where
         S: Storage,
     {
-        let Done {} = self.client.send_msg(&self.state.hmac).await?;
+        let Done {} = self.state.client.send(&self.state.hmac).await?;
 
         info!("DI.SetMac successfully");
 

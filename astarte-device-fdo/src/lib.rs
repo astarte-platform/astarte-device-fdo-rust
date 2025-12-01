@@ -23,6 +23,7 @@
 pub mod client;
 pub mod crypto;
 pub mod storage;
+pub(crate) mod time;
 
 pub mod di;
 pub mod srv_info;
