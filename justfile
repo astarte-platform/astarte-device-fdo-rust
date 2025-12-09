@@ -40,6 +40,7 @@ export CONTAINER_CACHE := "./.tmp/cache/containers"
 export GO_SERVER_REF := "ade68cda47d4281b8bea8248f45c43cbe1f8bca7"
 
 export ASTARTE_DIR := "./.tmp/astarte"
+export ASTARTE_BASE_URL := "astarte.localhost"
 export ASTARTE_API_URL := "http://api.astarte.localhost"
 export REALM := "test"
 export FDO_REALM := "test"
@@ -278,3 +279,42 @@ clea-dev-send-to0:
 [group('clea-dev')]
 clea-dev-healty:
     ./scripts/clea-dev/healthy.sh
+
+####
+# Board setup
+#
+#
+
+export BOARD_RV_DOMAIN := x"fdo-rendezvous.$BOARD_BASE_URL"
+export BOARD_RV := x"https://fdo-rendezvous.$BOARD_BASE_URL"
+export BOARD_API := x"https://${BOARD_API_PART:-api.astarte}.$BOARD_BASE_URL"
+export BOARD_MAN := x"http://fdo-manufactoring.astarte.host:8038"
+
+# Setups board
+[group('board')]
+board-setup: go-server-setup go-server-start board-healty board-rv-info
+
+[group('board')]
+board-rv-info:
+    ./scripts/board/create-rv-info.sh
+
+[group('board')]
+board-list-vouchers:
+    ./scripts/common/try-curl.sh "$BOARD_MAN/api/v1/vouchers" | jq
+
+[group('board')]
+board-send-to0 guid:
+    ./scripts/board/send-to0.sh '{{ guid }}'
+
+[group('board')]
+board-view-ov guid:
+    ./scripts/board/view-ov.sh '{{ guid }}'
+
+[group('board')]
+board-healty:
+    ./scripts/board/healthy.sh
+
+[group('board')]
+board-clean: go-server-stop
+    -rm -rvf "$FDODIR"
+    -rm -rvf "./.tmp/fdo-astarte"
