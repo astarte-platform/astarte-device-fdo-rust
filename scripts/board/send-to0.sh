@@ -23,8 +23,38 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-curl --location \
-    --fail-with-body \
-    --retry-all-errors \
-    --retry 15 --retry-delay 5 --retry-connrefused \
-    "$@"
+if [ -z "${1:-}" ]; then
+    GUID=$(cat "$FDO_DEVICE_GUID")
+else
+    GUID=$1
+fi
+
+if [[ -z $GUID ]]; then
+    echo "guid is unset"
+    exit 1
+fi
+
+voucherdir="$FDODIR/ov/ownervoucher"
+
+mkdir -p "$voucherdir"
+
+curl --fail -v "$BOARD_MAN/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
+
+voucher=$(cat "$voucherdir/$GUID")
+private_key=$(
+    openssl ec -in .tmp/fdo/certs/owner.key -inform der -out - -outform pem
+)
+
+json=$(
+    jq --null-input \
+        --arg voucher "$voucher" \
+        --arg key "$private_key" \
+        '{"data":{"ownership_voucher":$voucher,"private_key":$key}}'
+)
+
+
+
+curl --fail \
+    --header "Authorization: Bearer $BOARD_REALM_TOKEN" \
+    --request POST "$BOARD_API/pairing/v1/$BOARD_REALM/ownership" \
+    --json "$json"
