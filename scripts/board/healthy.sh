@@ -23,8 +23,10 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-curl --location \
-    --fail-with-body \
-    --retry-all-errors \
-    --retry 15 --retry-delay 5 --retry-connrefused \
-    "$@"
+./scripts/common/try-curl.sh "$BOARD_API/appengine/health"
+./scripts/common/try-curl.sh "$BOARD_API/pairing/health"
+./scripts/common/try-curl.sh "$BOARD_API/realmmanagement/health"
+./scripts/common/try-curl.sh "$BOARD_API/housekeeping/health"
+
+./scripts/common/try-curl.sh "$BOARD_RV/health"
+./scripts/common/try-curl.sh "$BOARD_MAN/health"
