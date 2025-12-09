@@ -23,8 +23,25 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-curl --location \
-    --fail-with-body \
-    --retry-all-errors \
-    --retry 15 --retry-delay 5 --retry-connrefused \
-    "$@"
+if [ -z "${1:-}" ]; then
+    GUID=$(cat "$FDO_DEVICE_GUID")
+else
+    GUID=$1
+fi
+
+if [[ -z $GUID ]]; then
+    echo "guid is unset"
+    exit 1
+fi
+
+voucherdir="$FDODIR/ov/ownervoucher"
+
+mkdir -p "$voucherdir"
+
+if [[ ! -f "$voucherdir/$GUID" ]]; then
+    curl --location \
+        --fail-with-body \
+        -v "$BOARD_MAN/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
+fi
+
+cat "$voucherdir/$GUID"
