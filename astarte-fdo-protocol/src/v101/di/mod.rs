@@ -16,14 +16,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
-// TODO: remove
-#![allow(dead_code)]
+//! The Device Initialization protocol between the Manufacturer and Device.
+//!
+//! The scope of this protocol is to share the Device public key to the manufacturer an to
+//! initialize the [`DeviceCredential`](super::device_credentials::DeviceCredential) on the Device.
 
-//! FIDO Device Onboarding protocol implementation
-
-use rustls::ClientConfig;
-
-pub mod client;
-pub mod crypto;
-pub mod storage;
+pub mod app_start;
+pub mod custom;
+pub mod done;
+pub mod set_credentials;
+pub mod set_hmac;
