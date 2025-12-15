@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025 SECO Mind Srl
@@ -16,23 +18,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[package]
-name = "e2e-test"
-version.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-publish = false
-repository.workspace = true
-rust-version.workspace = true
+set -exEuo pipefail
 
-[dependencies]
-astarte-device-fdo.workspace = true
-clap = { workspace = true, features = ["derive"] }
-color-eyre.workspace = true
-eyre.workspace = true
-rustls.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-url.workspace = true
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+cargo build
+
+# TODO: fix
+scp ./target/debug/client root@192.168.122.140:/tmp/client
+ssh root@192.168.122.140 env RUST_LOG="${RUST_LOG:-info}" /tmp/client use-tpm

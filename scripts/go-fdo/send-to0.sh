@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025 SECO Mind Srl
@@ -16,23 +18,25 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[package]
-name = "e2e-test"
-version.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-publish = false
-repository.workspace = true
-rust-version.workspace = true
+set -exEuo pipefail
 
-[dependencies]
-astarte-device-fdo.workspace = true
-clap = { workspace = true, features = ["derive"] }
-color-eyre.workspace = true
-eyre.workspace = true
-rustls.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-url.workspace = true
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+if [ -z "${1:-}" ]; then
+    GUID=$(cat "$FDO_DEVICE_GUID")
+else
+    GUID=$1
+fi
+
+if [[ -z $GUID ]]; then
+    echo "guid is unset"
+    exit 1
+fi
+
+voucherdir="$FDODIR/ov/ownervoucher"
+
+mkdir -p "$voucherdir"
+
+curl --fail -v "http://localhost:8038/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
+curl --fail --request POST 'http://localhost:8043/api/v1/owner/vouchers' --data-binary "@$voucherdir/$GUID"
