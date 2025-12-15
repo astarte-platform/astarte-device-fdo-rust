@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025 SECO Mind Srl
@@ -16,27 +18,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[package]
-name = "e2e-test"
-version.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-publish = false
-repository.workspace = true
-rust-version.workspace = true
+set -exEuo pipefail
 
-[features]
-default = []
-tpm = ["astarte-device-fdo/tpm"]
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-[dependencies]
-astarte-device-fdo.workspace = true
-clap = { workspace = true, features = ["derive"] }
-color-eyre.workspace = true
-eyre.workspace = true
-rustls.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-url.workspace = true
+mkdir -p "$REPOS"
+
+git=$1
+name=$2
+ref=$3
+
+if [ ! -d "$REPOS/$name" ]; then
+    git clone "$git" "$REPOS/$name"
+fi
+
+pushd "$REPOS/$name"
+git fetch
+# Random pinned commit
+git switch --detach "$ref"
+popd

@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025 SECO Mind Srl
@@ -16,27 +18,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-[package]
-name = "e2e-test"
-version.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-publish = false
-repository.workspace = true
-rust-version.workspace = true
+set -exEuo pipefail
 
-[features]
-default = []
-tpm = ["astarte-device-fdo/tpm"]
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-[dependencies]
-astarte-device-fdo.workspace = true
-clap = { workspace = true, features = ["derive"] }
-color-eyre.workspace = true
-eyre.workspace = true
-rustls.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-url.workspace = true
+out=.tmp/sysroot/
+
+mkdir -p "$out"
+
+out=$(realpath $out)
+
+cd containers/tpm2-tss-build
+
+$CONTAINER build --tag dev-tpm2-tss-build:latest .
+$CONTAINER run --rm --volume "$out:$out:z" --env "PREFIX=$out" dev-tpm2-tss-build:latest

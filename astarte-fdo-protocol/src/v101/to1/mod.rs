@@ -16,37 +16,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
+//! Transfer Ownership Protocol 1 (TO1).
+//!
+//! Transfer Ownership Protocol 1 (TO1) finishes the rendezvous started between the New Owner and
+//! the Rendezvous Server in the Transfer Ownership Protocol 0 (TO0). In this protocol, the Device
+//! ROE communicates with the Rendezvous Server and obtains the IP addressing info for the
+//! prospective new Owner. Then the Device may establish trust with the new Owner by connecting to
+//! it, using the TO2 Protocol.
 
-//! FIDO Device Onboarding protocol implementation
-
-pub mod client;
-pub mod crypto;
-pub mod storage;
-
-pub mod di;
-pub mod to1;
-pub mod to2;
-
-pub use astarte_fdo_protocol;
-
-pub use self::crypto::Crypto;
-pub use self::storage::Storage;
-
-/// Context for the FDO protocol
-#[derive(Debug)]
-pub struct Ctx<'a, C, S> {
-    crypto: &'a mut C,
-    storage: &'a mut S,
-}
-
-impl<'a, C, S> Ctx<'a, C, S> {
-    /// Creates a new context.
-    pub fn new(crypto: &'a mut C, storage: &'a mut S) -> Self
-    where
-        C: Crypto,
-        S: Storage,
-    {
-        Self { crypto, storage }
-    }
-}
+pub mod hello_rv;
+pub mod hello_rv_ack;
+pub mod prove_to_rv;
+pub mod rv_redirect;

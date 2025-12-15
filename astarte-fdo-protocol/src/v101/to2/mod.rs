@@ -16,37 +16,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
+//! Transfer Ownership Protocol 2 (TO2)
+//!
+//! Transfer Ownership Protocol 2 (TO2) is an interaction between the Device ROE and the Owner
+//! Onboarding Service where the transfer of ownership to the new Owner actually happens.
 
-//! FIDO Device Onboarding protocol implementation
-
-pub mod client;
-pub mod crypto;
-pub mod storage;
-
-pub mod di;
-pub mod to1;
-pub mod to2;
-
-pub use astarte_fdo_protocol;
-
-pub use self::crypto::Crypto;
-pub use self::storage::Storage;
-
-/// Context for the FDO protocol
-#[derive(Debug)]
-pub struct Ctx<'a, C, S> {
-    crypto: &'a mut C,
-    storage: &'a mut S,
-}
-
-impl<'a, C, S> Ctx<'a, C, S> {
-    /// Creates a new context.
-    pub fn new(crypto: &'a mut C, storage: &'a mut S) -> Self
-    where
-        C: Crypto,
-        S: Storage,
-    {
-        Self { crypto, storage }
-    }
-}
+pub mod device_service_info;
+pub mod device_service_info_ready;
+pub mod done;
+pub mod get_ov_next_entry;
+pub mod hello_device;
+pub mod ov_next_entry;
+pub mod owner_service_info;
+pub mod owner_service_info_ready;
+pub mod prove_device;
+pub mod prove_ov_hdr;
+pub mod setup_device;
