@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025 SECO Mind Srl
@@ -16,13 +18,25 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Install deps"
-description: "Install dependencies needed to run the jobs"
-runs:
-  using: "composite"
-  steps:
-    - name: Install system dependencies
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install libtss2-dev
+set -exEuo pipefail
+
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+if [ -z "${1:-}" ]; then
+    GUID=$(cat "$FDO_DEVICE_GUID")
+else
+    GUID=$1
+fi
+
+if [[ -z $GUID ]]; then
+    echo "guid is unset"
+    exit 1
+fi
+
+voucherdir="$FDODIR/ov/ownervoucher"
+
+mkdir -p "$voucherdir"
+
+curl --fail -v "http://localhost:8038/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
+curl --fail --request POST 'http://localhost:8043/api/v1/owner/vouchers' --data-binary "@$voucherdir/$GUID"
