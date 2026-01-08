@@ -380,7 +380,7 @@ pub(crate) mod tests {
         }
     }
 
-    fn create_ov_entry(payload: &OvEntryPayload) -> OvEntry {
+    pub(crate) fn create_ov_entry(payload: &OvEntryPayload) -> OvEntry {
         let mut buf = Vec::new();
         ciborium::into_writer(&payload, &mut buf).unwrap();
 
@@ -397,7 +397,7 @@ pub(crate) mod tests {
         OvEntry { entry }
     }
 
-    fn create_ov_entry_payload() -> OvEntryPayload<'static> {
+    pub(crate) fn create_ov_entry_payload() -> OvEntryPayload<'static> {
         OvEntryPayload {
             ov_e_hash_prev_entry: Hash::with_sha256(Cow::Owned(
                 from_hex("9be58b34344cfaab4b798288b7adedbbe451a2cf7cacf9b0d2aecef26cc0e1d1").into(),

@@ -165,7 +165,7 @@ fn parse_len_prefixed_slice(bytes: &[u8]) -> Option<(&[u8], &[u8])> {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct XAKeyExchange<'a>(Cow<'a, Bytes>);
+pub struct XAKeyExchange<'a>(pub(crate) Cow<'a, Bytes>);
 
 impl<'a> XAKeyExchange<'a> {
     /// Returns the [`EcdhParams`] of the exchange.

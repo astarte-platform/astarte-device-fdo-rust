@@ -48,6 +48,7 @@ pub mod x509;
 
 pub mod di;
 pub mod to1;
+pub mod to2;
 
 /// Major version of the protocol
 pub const PROTOCOL_VERSION_MAJOR: Protver = 1;
@@ -263,28 +264,28 @@ pub type NonceTo0Sign = Nonce;
 /// ```cddl
 /// NonceTO1Proof = Nonce
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct NonceTo1Proof(pub Nonce);
 
 /// ```cddl
 /// NonceTO2ProveOV = Nonce
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct NonceTo2ProveOv(pub Nonce);
 
 /// ```cddl
 /// NonceTO2ProveDv = Nonce
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct NonceTo2ProveDv(pub Nonce);
 
 /// ```cddl
 /// NonceTO2SetupDv = Nonce
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct NonceTo2SetupDv(pub Nonce);
 

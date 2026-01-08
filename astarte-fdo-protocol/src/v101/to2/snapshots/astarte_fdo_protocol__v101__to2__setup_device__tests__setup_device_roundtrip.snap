@@ -1,0 +1,6 @@
+---
+source: astarte-fdo-protocol/src/v101/to2/setup_device.rs
+expression: buf
+extension: cbor
+snapshot_kind: binary
+---

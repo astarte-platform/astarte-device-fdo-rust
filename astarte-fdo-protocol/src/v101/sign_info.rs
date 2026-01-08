@@ -36,7 +36,7 @@ use crate::Error;
 ///     Info: bstr
 /// ]
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SigInfo<'a> {
     pub(crate) sg_type: DeviceSgType,
     // NOTE: this is usually empty?
@@ -78,7 +78,7 @@ impl<'de> Deserialize<'de> for SigInfo<'_> {
 /// ```cddl
 /// eASigInfo = SigInfo  ;; from Device to Rendezvous/Owner
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct EASigInfo<'a>(pub SigInfo<'a>);
 
