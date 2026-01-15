@@ -39,12 +39,13 @@ annotate() {
         return
     fi
 
-    reuse annotate \
+    uv run reuse annotate \
         --copyright 'SECO Mind Srl' \
         --copyright-prefix string \
         --merge-copyrights \
         --license 'Apache-2.0' \
         --template apache-2 \
+        --skip-unrecognised \
         "$@"
 }
 
