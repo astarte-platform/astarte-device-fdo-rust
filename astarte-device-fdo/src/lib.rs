@@ -16,17 +16,50 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+#![warn(missing_docs, rustdoc::missing_crate_level_docs)]
+
+//! FIDO Device Onboarding protocol implementation
+
+pub mod client;
+pub mod crypto;
+pub mod storage;
+
+pub mod di;
+pub mod srv_info;
+pub mod to1;
+pub mod to2;
+
+pub use astarte_fdo_protocol;
+pub use rustls;
+pub use url;
+
+pub use self::crypto::Crypto;
+pub use self::storage::Storage;
+
+/// Context for the FDO protocol
+#[derive(Debug)]
+pub struct Ctx<'a, C, S> {
+    crypto: &'a mut C,
+    storage: &'a mut S,
+    tls: rustls::ClientConfig,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl<'a, C, S> Ctx<'a, C, S> {
+    /// Creates a new context.
+    pub fn new(crypto: &'a mut C, storage: &'a mut S, tls: rustls::ClientConfig) -> Self
+    where
+        C: Crypto,
+        S: Storage,
+    {
+        Self {
+            crypto,
+            storage,
+            tls,
+        }
+    }
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    /// Returns the TLS config
+    pub fn tls(&self) -> &rustls::ClientConfig {
+        &self.tls
     }
 }

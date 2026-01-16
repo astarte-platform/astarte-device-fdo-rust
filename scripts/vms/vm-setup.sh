@@ -2,7 +2,7 @@
 
 # This file is part of Astarte.
 #
-# Copyright 2025, 2026 SECO Mind Srl
+# Copyright 2025 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,20 +23,20 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-if [ -z "${1:-}" ]; then
-    GUID=$(cat "$FDO_DEVICE_GUID")
-else
-    GUID=$1
+mkdir -p .tmp/vm/
+
+out=$HOME/vms/fedora-tpm-disk.qcow2
+
+if [ ! -f "$out" ]; then
+    curl --location --fail --output "$out" \
+        https://download.fedoraproject.org/pub/fedora/linux/releases/43/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-43-1.6.x86_64.qcow2
 fi
 
-if [[ -z $GUID ]]; then
-    echo "guid is unset"
-    exit 1
-fi
+configs=(
+    "<host mac='52:54:00:00:00:14' name='cloudtest' ip='192.168.122.140' />"
+)
 
-voucherdir="$FDODIR/ov/ownervoucher"
-
-mkdir -p "$voucherdir"
-
-curl --fail -v "http://localhost:8038/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
-curl --fail --request POST 'http://localhost:8043/api/v1/owner/vouchers' --data-binary "@$voucherdir/$GUID"
+for cfg in "${configs[@]}"; do
+    sudo virsh net-update default modify ip-dhcp-host "$cfg" --live --config ||
+        sudo virsh net-update default add ip-dhcp-host "$cfg" --live --config
+done

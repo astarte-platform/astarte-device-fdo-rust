@@ -2,7 +2,7 @@
 
 # This file is part of Astarte.
 #
-# Copyright 2025, 2026 SECO Mind Srl
+# Copyright 2025 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,8 +23,7 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-cargo build
-
-# TODO: fix
-scp ./target/debug/client root@192.168.122.140:/tmp/client
-ssh root@192.168.122.140 env RUST_LOG="${RUST_LOG:-info}" /tmp/client use-tpm
+./scripts/common/try-curl.sh "$ASTARTE_API_URL/appengine/health"
+./scripts/common/try-curl.sh "$ASTARTE_API_URL/pairing/health"
+./scripts/common/try-curl.sh "$ASTARTE_API_URL/realmmanagement/health"
+./scripts/common/try-curl.sh "$ASTARTE_API_URL/housekeeping/health"

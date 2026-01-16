@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025 SECO Mind Srl
@@ -16,13 +18,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Install deps"
-description: "Install dependencies needed to run the jobs"
-runs:
-  using: "composite"
-  steps:
-    - name: Install system dependencies
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install libtss2-dev
+set -exEuo pipefail
+
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+cd "$REPOS/astarte"
+if [ ! -f "compose/astarte-keys/housekeeping_private.pem" ]; then
+    $CONTAINER run --rm \
+        --userns=host \
+        --volume "$(pwd)/compose:/compose:z" \
+        astarte/docker-compose-initializer:1.2.0
+fi
+
+if [ ! -f "test_private.pem" ]; then
+    astartectl utils gen-keypair "$REALM"
+fi

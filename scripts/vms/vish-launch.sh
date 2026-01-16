@@ -25,21 +25,40 @@ trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
 mkdir -p .tmp/vm/
 
-echo passwd >.tmp/vm/passwordfile
-ssh-add -L >.tmp/vm/id_ecc.pub
+tmp=$(mktemp -d)
 
-configs=(
-    "<host mac='52:54:00:00:00:14' name='cloudtest' ip='192.168.122.140' />"
-)
+key=$(ssh-add -L)
 
-for cfg in "${configs[@]}"; do
-    sudo virsh net-update default modify ip-dhcp-host "$cfg" --live --config ||
-        sudo virsh net-update default add ip-dhcp-host "$cfg" --live --config
-done
+echo "$key" >"$tmp/ssh"
+
+touch "$tmp/meta-data"
+touch "$tmp/network-config"
+
+cat >"$tmp/user-data" <<EOF
+#cloud-config
+password: passwd
+chpasswd:
+  expire: False
+ssh_pwauth: True
+ssh_authorized_keys:
+  - $key
+users:
+  - default
+  - name: $USER
+    password: passwd
+    chpasswd:
+      expire: False
+    ssh_authorized_keys:
+      - $key
+    primary_group: foobar
+    groups: adm,wheel,systemd-journal,tss
+EOF
+
+ssh-keygen -R 192.168.122.140
 
 virt-install --import --name cloudtest \
-    --memory 2048 --network bridge=virbr0,mac=52:54:00:00:00:14 \
-    --os-variant detect=on,name=fedora-unknown \
-    --cloud-init root-password-file=./.tmp/vm/passwordfile,root-ssh-key=./.tmp/vm/id_ecc.pub \
-    --disk=size=10,backing_store="$HOME/vms/fedora-cloud.qcow2" \
+    --memory 2048 --network bridge=virbr0,mac=52:54:00:00:00:14 --graphics none \
+    --os-variant fedora41 \
+    --cloud-init "user-data=$tmp/user-data,meta-data=$tmp/meta-data,network-config=$tmp/network-config" \
+    --disk=size=10,backing_store="$HOME/vms/fedora-tpm-disk.qcow2" \
     --tpm emulator
