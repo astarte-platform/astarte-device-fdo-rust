@@ -2,7 +2,7 @@
 
 # This file is part of Astarte.
 #
-# Copyright 2025 SECO Mind Srl
+# Copyright 2025, 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,12 +39,13 @@ annotate() {
         return
     fi
 
-    reuse annotate \
+    uv run reuse annotate \
         --copyright 'SECO Mind Srl' \
         --copyright-prefix string \
         --merge-copyrights \
         --license 'Apache-2.0' \
         --template apache-2 \
+        --skip-unrecognised \
         "$@"
 }
 
@@ -62,4 +63,4 @@ while read -r line; do
     fi
 
     annotate "$line"
-done </dev/stdin
+done

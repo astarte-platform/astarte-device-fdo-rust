@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025, 2026 SECO Mind Srl
@@ -16,7 +18,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-.envrc.private
-.pre-commit-config.yaml
-.tmp/
-target/
+set -exEuo pipefail
+
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+$CONTAINER run --rm -it \
+    --name fdo-client \
+    --network host \
+    --user 0:0 \
+    -v "$FDODIR":/tmp/fdo:z \
+    go-fdo-client:latest \
+    "$@"

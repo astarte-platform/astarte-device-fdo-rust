@@ -1,6 +1,6 @@
 # This file is part of Astarte.
 #
-# Copyright 2025, 2026 SECO Mind Srl
+# Copyright 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: e2e-test
+name: copyright
 on:
   workflow_call:
   workflow_dispatch:
@@ -25,33 +25,18 @@ permissions:
 defaults:
   run:
     shell: bash
-env:
-  CI: "true"
-  CARGO_TERM_COLOR: always
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
-  RUSTFLAGS: -D warnings
-  RUSTDOCFLAGS: -D warnings
 jobs:
-  e2e-test:
+  check-annotations:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04
+    env:
+      BASE_REF: ${{ github.event.pull_request.base.sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/install-deps
-      - uses: actions-rust-lang/setup-rust-toolchain@v1.15.2
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: cache container build
-        id: cache-container
-        uses: actions/cache@v4.3.0
         with:
-          path: .tmp/cache/containers
-          key: ${{ runner.os }}-${{ hashFiles('justfile', 'scripts/**/*.sh', 'containers/**') }}
-      - uses: taiki-e/install-action@v2.49.43
-        with:
-          tool: just
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7.2.0
       - run: |
-          just go-server-clone
-          just go-server-build
-      - run: |
-          just go-server-run
-          just go-server-health
+          ./scripts/ci/add-copyright-to-modified.sh "$BASE_REF" "$HEAD_REF"
+          git diff --exit-code --name-only

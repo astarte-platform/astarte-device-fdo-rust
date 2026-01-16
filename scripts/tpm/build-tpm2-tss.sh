@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025, 2026 SECO Mind Srl
@@ -16,7 +18,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-.envrc.private
-.pre-commit-config.yaml
-.tmp/
-target/
+set -exEuo pipefail
+
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+out=.tmp/sysroot/
+
+mkdir -p "$out"
+
+out=$(realpath $out)
+
+cd containers/tpm2-tss-build
+
+$CONTAINER build --tag dev-tpm2-tss-build:latest .
+$CONTAINER run --rm --volume "$out:$out:z" --env "PREFIX=$out" dev-tpm2-tss-build:latest

@@ -16,7 +16,19 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-.envrc.private
-.pre-commit-config.yaml
-.tmp/
-target/
+# Fedora
+FROM fedora:43@sha256:b8f499bee9c97c7c1be0ff7b8b6e4ab72af4216c30d2365c9d474ce2d5c5fd9a
+
+WORKDIR /srv
+
+RUN dnf --assumeyes install libtool awk automake autoconf autoconf-archive && \
+    dnf --assumeyes group install development-tools c-development &&\
+    dnf --assumeyes builddep tpm2-tss && \
+    dnf --assumeyes install libuuid-devel
+
+RUN git clone https://github.com/tpm2-software/tpm2-tss.git
+
+ENTRYPOINT cd /srv/tpm2-tss && \
+    ./bootstrap && ./configure --prefix="$PREFIX" && \
+    make -j$(nproc) DESTDIR=/out CFLAGS="-Wno-error" && \
+    make install
