@@ -2,7 +2,7 @@
 
 # This file is part of Astarte.
 #
-# Copyright 2025, 2026 SECO Mind Srl
+# Copyright 2025 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-cargo build
+cargo build --package e2e-test --features tpm
 
-# TODO: fix
-scp ./target/debug/client root@192.168.122.140:/tmp/client
-ssh root@192.168.122.140 env RUST_LOG="${RUST_LOG:-info}" /tmp/client use-tpm
+rsync ./target/debug/e2e-test 192.168.122.140:./e2e-test
+ssh 192.168.122.140 env RUST_LOG="${RUST_LOG:-info}" ./e2e-test \
+    use-tpm to
