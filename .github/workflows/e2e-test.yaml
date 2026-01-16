@@ -50,8 +50,5 @@ jobs:
         with:
           tool: just
       - run: |
-          just go-server-clone
-          just go-server-build
-      - run: |
-          just go-server-run
-          just go-server-health
+          just setup
+          just run
