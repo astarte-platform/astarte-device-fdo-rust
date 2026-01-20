@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -132,6 +132,7 @@ mod tests {
     use coset::{CoseSign1Builder, HeaderBuilder};
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
     use crate::v101::ownership_voucher::tests::ECC_SIGNATURE;
 
     use super::*;
@@ -163,6 +164,8 @@ mod tests {
 
         assert_eq!(res, info);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }

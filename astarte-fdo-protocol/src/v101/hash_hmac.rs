@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -240,6 +240,7 @@ impl From<Hashtype> for i8 {
 pub(crate) mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
     use crate::v101::tests::from_hex;
 
     use super::*;
@@ -274,7 +275,9 @@ pub(crate) mod tests {
 
         assert_eq!(res, case);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 
     #[test]
@@ -287,7 +290,9 @@ pub(crate) mod tests {
 
         assert_eq!(res, case);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 
     #[test]
@@ -314,7 +319,9 @@ pub(crate) mod tests {
     fn hash_debug() {
         let case = create_hash();
 
-        insta::assert_debug_snapshot!(case);
+        insta_settings!({
+            insta::assert_debug_snapshot!(case);
+        });
     }
 
     #[test]
@@ -335,16 +342,18 @@ pub(crate) mod tests {
             Hashtype::HmacSha384,
         ];
 
-        for case in cases {
-            let mut buf = Vec::new();
-            ciborium::into_writer(&case, &mut buf).unwrap();
+        insta_settings!({
+            for case in cases {
+                let mut buf = Vec::new();
+                ciborium::into_writer(&case, &mut buf).unwrap();
 
-            let res: Hashtype = ciborium::from_reader(buf.as_slice()).unwrap();
+                let res: Hashtype = ciborium::from_reader(buf.as_slice()).unwrap();
 
-            assert_eq!(res, case);
+                assert_eq!(res, case);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
-        }
+                insta::assert_binary_snapshot!(".cbor", buf);
+            }
+        });
     }
 
     #[test]

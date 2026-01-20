@@ -125,6 +125,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
     use crate::v101::service_info::ServiceInfoKv;
 
     use super::*;
@@ -148,6 +149,8 @@ mod tests {
 
         assert_eq!(res, info);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }

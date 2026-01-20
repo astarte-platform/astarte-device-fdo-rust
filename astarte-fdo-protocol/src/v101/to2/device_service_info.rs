@@ -239,6 +239,8 @@ impl ClientMessage for DeviceServiceInfo<'_> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::insta_settings;
+
     use super::*;
 
     #[test]
@@ -253,6 +255,8 @@ mod tests {
 
         assert_eq!(res, dv);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }
