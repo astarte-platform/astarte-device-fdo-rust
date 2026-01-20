@@ -64,3 +64,4 @@ mockito.workspace = true
 pretty_assertions.workspace = true
 tokio = { workspace = true, features = ["macros"] }
 tokio-test.workspace = true
+insta.workspace = true
