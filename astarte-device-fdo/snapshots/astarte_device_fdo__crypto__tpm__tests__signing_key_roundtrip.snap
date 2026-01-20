@@ -1,0 +1,6 @@
+---
+source: astarte-device-fdo/src/crypto/tpm.rs
+expression: buf
+extension: cbor
+snapshot_kind: binary
+---

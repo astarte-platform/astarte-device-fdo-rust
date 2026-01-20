@@ -28,6 +28,7 @@ use astarte_fdo_protocol::v101::key_exchange::{AsEccKey, EcdhParams};
 use astarte_fdo_protocol::Error;
 use coset::{CoseSign1Builder, HeaderBuilder};
 use rcgen::{CertificateParams, DistinguishedName, DnType};
+use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 use tracing::{error, info};
 use tss_esapi::attributes::ObjectAttributesBuilder;
@@ -49,14 +50,70 @@ use super::{Crypto, DefaultKeyExchange};
 
 const TPM_CONNECTION: &str = "device:/dev/tpmrm0";
 
+#[derive(Debug, PartialEq, Eq)]
+struct Encoded<'a> {
+    private: Cow<'a, serde_bytes::Bytes>,
+    public: Cow<'a, serde_bytes::Bytes>,
+}
+
+impl<'a> Encoded<'a> {
+    fn new(private: &'a [u8], public: &'a [u8]) -> Self {
+        Self {
+            private: Cow::Borrowed(Bytes::new(private)),
+            public: Cow::Borrowed(Bytes::new(public)),
+        }
+    }
+
+    fn private(&self) -> Result<Private, Error> {
+        let private: &[u8] = self.private.as_ref();
+
+        Private::try_from(private).map_err(|error| {
+            error!(%error, "couldn't read private");
+
+            Error::new(ErrorKind::Decode, "encoded private value")
+        })
+    }
+
+    fn public(&self) -> Result<Public, Error> {
+        let public: &[u8] = self.public.as_ref();
+
+        Public::unmarshall(public).map_err(|error| {
+            error!(%error, "couldn't unmarshall public");
+
+            Error::new(ErrorKind::Decode, "ECC public value")
+        })
+    }
+}
+
+impl Serialize for Encoded<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let Self { private, public } = self;
+
+        (private, public).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Encoded<'_> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let (private, public) = Deserialize::deserialize(deserializer)?;
+
+        Ok(Self { private, public })
+    }
+}
+
 struct TpmEcc {
     private: Private,
     public: Public,
 }
 
 impl TpmEcc {
-    const FILE_PUBLIC: &'static str = "public-key.ecc.bin";
-    const FILE_PRIVATE: &'static str = "private-key.ecc.bin";
+    const FILE: &'static str = "signing.ecc.bin";
 
     async fn load<S>(
         ctx: &mut tss_esapi::Context,
@@ -66,23 +123,18 @@ impl TpmEcc {
     where
         S: Storage,
     {
-        let public = storage.read(Self::FILE_PUBLIC).await?;
-        let private = storage.read(Self::FILE_PRIVATE).await?;
-
-        let Some((public, private)) = public.iter().zip(private).next() else {
+        let Some(file) = storage.read(Self::FILE).await? else {
             return Self::create(ctx, primary, storage).await;
         };
 
-        let private = Private::try_from(private).map_err(|error| {
-            error!(%error, "couldn't read private");
+        let encoded: Encoded = ciborium::from_reader(file.as_slice()).map_err(|error| {
+            error!(%error, "couldn't decode TPM ");
 
-            Error::new(ErrorKind::Decode, "ECC private part")
+            Error::new(ErrorKind::Decode, "tpm public key")
         })?;
-        let public = Public::unmarshall(public).map_err(|error| {
-            error!(%error, "couldn't unmarshall public");
 
-            Error::new(ErrorKind::Decode, "ECC public part")
-        })?;
+        let private = encoded.private()?;
+        let public = encoded.public()?;
 
         if !matches!(public, Public::Ecc { .. }) {
             return Err(Error::new(ErrorKind::Invalid, "public part is not for ECC"));
@@ -110,10 +162,17 @@ impl TpmEcc {
 
             Error::new(ErrorKind::Encode, "TPM signing public key")
         })?;
-        storage.write_immutable(Self::FILE_PUBLIC, &public).await?;
-        storage
-            .write_immutable(Self::FILE_PRIVATE, &this.private)
-            .await?;
+
+        let encoded = Encoded::new(&this.private, &public);
+
+        let mut buf = Vec::new();
+        ciborium::into_writer(&encoded, &mut buf).map_err(|error| {
+            error!(%error, "couldn't encode TPM signing key");
+
+            Error::new(ErrorKind::Encode, "TPM signign key")
+        })?;
+
+        storage.write_immutable(Self::FILE, &buf).await?;
 
         Ok(this)
     }
@@ -178,24 +237,14 @@ struct TpmHmac {
 
 impl TpmHmac {
     async fn decode(secret: &[u8]) -> Result<Self, Error> {
-        let [public, private]: [Cow<Bytes>; 2] =
-            ciborium::from_reader(secret).map_err(|error| {
-                error!(%error, "couldn't decode TPM HMAC secret");
+        let encoded: Encoded = ciborium::from_reader(secret).map_err(|error| {
+            error!(%error, "couldn't decode TPM HMAC secret");
 
-                Error::new(ErrorKind::Decode, "HMAC secret")
-            })?;
-
-        let private: &[u8] = private.as_ref();
-        let private = Private::try_from(private).map_err(|error| {
-            error!(%error, "couldn't read private");
-
-            Error::new(ErrorKind::Decode, "HMAC private part")
+            Error::new(ErrorKind::Decode, "HMAC secret")
         })?;
-        let public = Public::unmarshall(&public).map_err(|error| {
-            error!(%error, "couldn't unmarshall public");
 
-            Error::new(ErrorKind::Decode, "HMAC public part")
-        })?;
+        let private = encoded.private()?;
+        let public = encoded.public()?;
 
         if !matches!(public, Public::KeyedHash { .. }) {
             return Err(Error::new(
@@ -699,5 +748,32 @@ impl rcgen::SigningKey for RcgenKeyCompat<'_> {
             .map_err(|_| rcgen::Error::RingUnspecified)
             .and_then(|mut tpm| tpm.sign(msg).map_err(|_| rcgen::Error::RingUnspecified))
             .map(|sign| sign.to_der().as_bytes().to_vec())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use insta::assert_binary_snapshot;
+    use pretty_assertions::assert_eq;
+
+    use crate::tests::with_settings;
+
+    use super::*;
+
+    #[test]
+    fn signing_key_roundtrip() {
+        let encoded = Encoded::new(&[1, 2, 3, 4], &[5, 6, 7, 8, 9]);
+
+        let mut buf = Vec::new();
+
+        ciborium::into_writer(&encoded, &mut buf).unwrap();
+
+        let res: Encoded = ciborium::from_reader(buf.as_slice()).unwrap();
+
+        assert_eq!(res, encoded);
+
+        with_settings!({
+            assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }
