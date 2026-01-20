@@ -87,13 +87,17 @@ impl Display for ErrorKind {
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
+
     use super::*;
 
     #[test]
     fn error_display() {
         let error = Error::new(ErrorKind::Encode, "the message");
 
-        insta::assert_snapshot!(error);
+        insta_settings!({
+            insta::assert_snapshot!(error);
+        });
     }
 
     #[test]
@@ -119,6 +123,8 @@ mod tests {
         .map(|t| t.to_string())
         .join("\n");
 
-        insta::assert_snapshot!(codes);
+        insta_settings!({
+            insta::assert_snapshot!(codes);
+        });
     }
 }

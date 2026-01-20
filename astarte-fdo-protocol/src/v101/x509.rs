@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -150,6 +150,7 @@ impl PartialEq for X509<'_> {
 pub(crate) mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
     use crate::v101::public_key::tests::{PUB_KEY_ECC, PUB_KEY_RSA};
 
     use super::*;
@@ -171,16 +172,18 @@ pub(crate) mod tests {
             CoseX509::Certs(Repetition::new(vec![ecc, rsa]).unwrap()),
         ];
 
-        for case in cases {
-            let mut buf = Vec::new();
-            ciborium::into_writer(&case, &mut buf).unwrap();
+        insta_settings!({
+            for case in cases {
+                let mut buf = Vec::new();
+                ciborium::into_writer(&case, &mut buf).unwrap();
 
-            let res: CoseX509 = ciborium::from_reader(buf.as_slice()).unwrap();
+                let res: CoseX509 = ciborium::from_reader(buf.as_slice()).unwrap();
 
-            assert_eq!(res, case);
+                assert_eq!(res, case);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
-        }
+                insta::assert_binary_snapshot!(".cbor", buf);
+            }
+        });
     }
 
     #[test]

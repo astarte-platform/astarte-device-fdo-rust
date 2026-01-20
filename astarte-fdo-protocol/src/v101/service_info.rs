@@ -252,6 +252,8 @@ mod tests {
     use coset::CborSerializable;
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
+
     use super::*;
 
     #[test]
@@ -277,7 +279,9 @@ mod tests {
 
             assert_eq!(res, case);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
+            insta_settings!({
+                insta::assert_binary_snapshot!(".cbor", buf);
+            });
         }
     }
 
