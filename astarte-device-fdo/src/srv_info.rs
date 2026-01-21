@@ -341,13 +341,11 @@ mod tests {
             .to_vec()
             .unwrap();
 
-        let service_info = vec![
-            ServiceInfoKv::new("astarte:active", &active),
+        let service_info = [ServiceInfoKv::new("astarte:active", &active),
             ServiceInfoKv::new("astarte:realm", &realm),
             ServiceInfoKv::new("astarte:secret", &secret),
             ServiceInfoKv::new("astarte:baseurl", &baseurl),
-            ServiceInfoKv::new("astarte:deviceid", &deviceid),
-        ];
+            ServiceInfoKv::new("astarte:deviceid", &deviceid)];
 
         let mut builder = AstarteMod::builder();
 

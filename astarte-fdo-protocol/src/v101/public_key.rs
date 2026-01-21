@@ -385,7 +385,8 @@ pub(crate) mod tests {
     fn pub_key_cases() -> [(PkEnc, PkBody<'static>); 4] {
         let cert = X509::parse(CERT_ECC).unwrap();
 
-        let cases = [
+        
+        [
             (
                 PkEnc::Crypto,
                 PkBody::Crypto(Cow::Borrowed(Bytes::new(&[0, 1, 2, 3, 4]))),
@@ -396,8 +397,7 @@ pub(crate) mod tests {
             ),
             (PkEnc::X5Chain, PkBody::X5Chain(CoseX509::One(cert))),
             (PkEnc::CoseKey, PkBody::CoseKey(cose_key())),
-        ];
-        cases
+        ]
     }
 
     #[test]
