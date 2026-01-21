@@ -20,9 +20,9 @@
 
 use std::borrow::Cow;
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::hash_hmac::{HMac, Hashtype};
-use astarte_fdo_protocol::Error;
 use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 use aws_lc_rs::signature::{EcdsaKeyPair, KeyPair};
 use coset::{CoseSign1, CoseSign1Builder, HeaderBuilder};

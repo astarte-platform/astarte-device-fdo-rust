@@ -24,7 +24,9 @@
 
 use std::borrow::Cow;
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
+use astarte_fdo_protocol::v101::PROTOCOL_VERSION;
 use astarte_fdo_protocol::v101::device_credentials::DeviceCredential;
 use astarte_fdo_protocol::v101::di::app_start::AppStart;
 use astarte_fdo_protocol::v101::di::custom::MfgInfo;
@@ -32,15 +34,13 @@ use astarte_fdo_protocol::v101::di::done::Done;
 use astarte_fdo_protocol::v101::di::set_credentials::SetCredentials;
 use astarte_fdo_protocol::v101::di::set_hmac::SetHmac;
 use astarte_fdo_protocol::v101::hash_hmac::{HMac, Hash};
-use astarte_fdo_protocol::v101::PROTOCOL_VERSION;
-use astarte_fdo_protocol::Error;
 use serde_bytes::ByteBuf;
 use tracing::{debug, error, info};
 
+use crate::Ctx;
 use crate::client::http::{AuthClient, InitialClient};
 use crate::crypto::Crypto;
 use crate::storage::Storage;
-use crate::Ctx;
 
 pub(crate) const DEVICE_CREDS: &str = "device_creds.cbor";
 

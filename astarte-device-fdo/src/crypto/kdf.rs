@@ -20,8 +20,8 @@
 
 use std::ops::RangeInclusive;
 
-use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::Error;
+use astarte_fdo_protocol::error::ErrorKind;
 
 /// Trait to make the KDF generic over the type of the counter parameters.
 ///

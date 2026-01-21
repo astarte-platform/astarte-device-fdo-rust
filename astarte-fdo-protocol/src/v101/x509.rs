@@ -26,9 +26,9 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::utils::{Hex, Repetition};
-use crate::Error;
 
 /// X509 Certificate
 ///

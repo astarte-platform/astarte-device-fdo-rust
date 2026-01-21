@@ -64,6 +64,7 @@ use coset::iana::{EnumI64, HeaderParameter};
 use coset::{CoseSign1, Label, TaggedCborSerializable};
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::utils::CborBstr;
 use crate::v101::hash_hmac::{HMac, Hash};
@@ -72,7 +73,6 @@ use crate::v101::ownership_voucher::OvHeader;
 use crate::v101::public_key::PublicKey;
 use crate::v101::sign_info::EBSigInfo;
 use crate::v101::{Message, Msgtype, NonceTo2ProveDv, NonceTo2ProveOv};
-use crate::Error;
 
 /// ```cddl
 /// TO2.ProveOVHdr = CoseSignature
@@ -331,13 +331,13 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::tests::insta_settings;
+    use crate::v101::Nonce;
     use crate::v101::hash_hmac::tests::{create_hash, create_hmac};
     use crate::v101::key_exchange::{EcdhParams, XAKeyExchange, XBKeyExchange};
-    use crate::v101::ownership_voucher::tests::{create_ov_header, ECC_SIGNATURE};
-    use crate::v101::public_key::tests::{ecc_p256_params, PUB_KEY_ECC};
+    use crate::v101::ownership_voucher::tests::{ECC_SIGNATURE, create_ov_header};
+    use crate::v101::public_key::tests::{PUB_KEY_ECC, ecc_p256_params};
     use crate::v101::public_key::{PkBody, PkEnc, PkType};
     use crate::v101::sign_info::{DeviceSgType, SigInfo};
-    use crate::v101::Nonce;
 
     use super::*;
 

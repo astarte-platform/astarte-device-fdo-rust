@@ -28,11 +28,11 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::utils::CborBstr;
 use crate::v101::ownership_voucher::OvHeader;
 use crate::v101::{Message, Msgtype};
-use crate::Error;
 
 /// ```cddl
 /// DI.SetCredentials = [

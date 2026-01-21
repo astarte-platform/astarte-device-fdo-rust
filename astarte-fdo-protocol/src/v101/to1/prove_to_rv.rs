@@ -24,9 +24,9 @@ use std::io::Write;
 
 use coset::{CoseSign1, TaggedCborSerializable};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::{ClientMessage, Message, Msgtype};
-use crate::Error;
 
 use super::rv_redirect::RvRedirect;
 

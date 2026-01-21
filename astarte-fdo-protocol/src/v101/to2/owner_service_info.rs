@@ -39,10 +39,10 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::service_info::ServiceInfo;
 use crate::v101::{Message, Msgtype};
-use crate::Error;
 
 /// ```cddl
 /// TO2.OwnerServiceInfo = [

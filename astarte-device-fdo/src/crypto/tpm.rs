@@ -22,10 +22,10 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::str::FromStr;
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::hash_hmac::HMac;
 use astarte_fdo_protocol::v101::key_exchange::{AsEccKey, EcdhParams};
-use astarte_fdo_protocol::Error;
 use coset::{CoseSign1Builder, HeaderBuilder};
 use rcgen::{CertificateParams, DistinguishedName, DnType};
 use serde::{Deserialize, Serialize};

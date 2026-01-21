@@ -48,11 +48,11 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::key_exchange::KexSuitNames;
 use crate::v101::sign_info::EASigInfo;
 use crate::v101::{ClientMessage, Guid, InitialMessage, Message, Msgtype, NonceTo2ProveOv};
-use crate::Error;
 
 use super::prove_ov_hdr::ProveOvHdr;
 
@@ -181,9 +181,9 @@ mod tests {
     use coset::iana::EnumI64;
 
     use crate::tests::insta_settings;
+    use crate::v101::Nonce;
     use crate::v101::sign_info::{DeviceSgType, SigInfo};
     use crate::v101::tests::create_guid;
-    use crate::v101::Nonce;
 
     use super::*;
 

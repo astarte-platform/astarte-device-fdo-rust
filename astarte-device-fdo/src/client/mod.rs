@@ -21,10 +21,10 @@
 use std::io::Write;
 use std::marker::PhantomData;
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::latest::Msgtype;
 use astarte_fdo_protocol::v101::{ClientMessage, Message};
-use astarte_fdo_protocol::Error;
 use coset::{CoseEncrypt0, TaggedCborSerializable};
 use tracing::error;
 

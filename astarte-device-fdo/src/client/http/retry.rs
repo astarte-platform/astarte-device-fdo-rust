@@ -25,7 +25,7 @@ use http::status::StatusCode;
 use pin_project_lite::pin_project;
 use tracing::{info, warn};
 
-use crate::time::{add_random_jitter, DEFAULT_DELAY};
+use crate::time::{DEFAULT_DELAY, add_random_jitter};
 
 use super::MESSAGE_TYPE_HEADER;
 

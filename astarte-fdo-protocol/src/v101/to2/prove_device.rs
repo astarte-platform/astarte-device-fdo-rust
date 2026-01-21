@@ -50,10 +50,10 @@ use std::io::Write;
 
 use coset::TaggedCborSerializable;
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::eat_signature::EaToken;
 use crate::v101::{ClientMessage, Message, Msgtype};
-use crate::Error;
 
 use super::setup_device::SetupDevice;
 

@@ -22,8 +22,8 @@ use std::future::Future;
 use std::io;
 use std::path::PathBuf;
 
-use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::Error;
+use astarte_fdo_protocol::error::ErrorKind;
 use tokio::fs::{DirBuilder, File};
 use tokio::io::AsyncWriteExt;
 use tracing::{error, instrument};

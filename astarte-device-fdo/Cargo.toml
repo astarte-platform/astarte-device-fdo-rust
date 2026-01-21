@@ -47,7 +47,7 @@ p256 = { workspace = true, optional = true, default-features = false, features =
 pin-project-lite.workspace = true
 rand = { workspace = true, default-features = false, features = ["os_rng", "thread_rng"] }
 rcgen = { workspace = true, default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
-reqwest = { workspace = true, default-features = false, features = ["charset", "http2", "system-proxy", "rustls-tls-manual-roots-no-provider"] }
+reqwest = { workspace = true, default-features = false, features = ["charset", "http2", "system-proxy", "rustls-no-provider"] }
 rustls.workspace = true
 serde.workspace = true
 serde_bytes.workspace = true

@@ -18,16 +18,16 @@
 
 use std::path::PathBuf;
 
+use astarte_device_fdo::Ctx;
 use astarte_device_fdo::astarte_fdo_protocol::utils::Hex;
 use astarte_device_fdo::client::http::InitialClient;
-use astarte_device_fdo::crypto::software::SoftwareCrypto;
 use astarte_device_fdo::crypto::Crypto;
+use astarte_device_fdo::crypto::software::SoftwareCrypto;
 use astarte_device_fdo::di::Di;
 use astarte_device_fdo::srv_info::{AstarteMod, AstarteModBuilder, SkipServiceInfo};
 use astarte_device_fdo::storage::{FileStorage, Storage};
 use astarte_device_fdo::to1::To1;
 use astarte_device_fdo::to2::{Hello, To2};
-use astarte_device_fdo::Ctx;
 use clap::{Parser, Subcommand};
 use eyre::{bail, eyre};
 use tracing::info;

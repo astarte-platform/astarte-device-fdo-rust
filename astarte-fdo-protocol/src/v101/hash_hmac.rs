@@ -24,9 +24,9 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::utils::Hex;
-use crate::Error;
 
 /// Crypto hash
 ///
@@ -394,7 +394,9 @@ pub(crate) mod tests {
                 }),
             ),
             (
-                from_hex("1f0da65eda5eafeb7d7aaee622980693452f4e50b33eca779c85b76cf779985ef3026afa46dfa0f5b0d23959b3471179"),
+                from_hex(
+                    "1f0da65eda5eafeb7d7aaee622980693452f4e50b33eca779c85b76cf779985ef3026afa46dfa0f5b0d23959b3471179",
+                ),
                 None,
             ),
         ];
@@ -442,7 +444,12 @@ pub(crate) mod tests {
                     ),
                 })),
             ),
-            (from_hex("1f0da65eda5eafeb7d7aaee622980693452f4e50b33eca779c85b76cf779985ef3026afa46dfa0f5b0d23959b3471179"), None),
+            (
+                from_hex(
+                    "1f0da65eda5eafeb7d7aaee622980693452f4e50b33eca779c85b76cf779985ef3026afa46dfa0f5b0d23959b3471179",
+                ),
+                None,
+            ),
         ];
 
         for (hash, exp) in cases {

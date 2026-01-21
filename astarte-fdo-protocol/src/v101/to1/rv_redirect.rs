@@ -27,11 +27,11 @@ use std::io::Write;
 use coset::{CoseSign1, TaggedCborSerializable};
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::hash_hmac::Hash;
 use crate::v101::rv_to2_addr::RvTo2Addr;
 use crate::v101::{Message, Msgtype};
-use crate::Error;
 
 /// ```cddl
 /// TO1.RVRedirect = to1d

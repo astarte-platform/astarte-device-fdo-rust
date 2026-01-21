@@ -23,10 +23,10 @@ use std::io::Write;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::utils::CborBstr;
 use crate::v101::{ClientMessage, InitialMessage, Message, Msgtype};
-use crate::Error;
 
 use super::set_credentials::SetCredentials;
 

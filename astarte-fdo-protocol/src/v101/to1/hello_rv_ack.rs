@@ -25,10 +25,10 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::sign_info::EBSigInfo;
 use crate::v101::{Message, Msgtype, NonceTo1Proof};
-use crate::Error;
 
 /// ```cddl
 /// TO1.HelloRVAck = [
@@ -108,8 +108,8 @@ impl Message for HelloRvAck<'_> {
 #[cfg(test)]
 mod tests {
     use crate::tests::insta_settings;
-    use crate::v101::sign_info::{DeviceSgType, SigInfo};
     use crate::v101::Nonce;
+    use crate::v101::sign_info::{DeviceSgType, SigInfo};
 
     use super::*;
 

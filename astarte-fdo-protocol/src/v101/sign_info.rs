@@ -27,8 +27,8 @@ use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 
-use crate::error::ErrorKind;
 use crate::Error;
+use crate::error::ErrorKind;
 
 /// ```cddl
 /// SigInfo = [

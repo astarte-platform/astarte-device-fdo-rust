@@ -27,8 +27,8 @@ use serde::de::Visitor;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
-use crate::error::ErrorKind;
 use crate::Error;
+use crate::error::ErrorKind;
 
 use super::x509::CoseX509;
 
@@ -343,8 +343,8 @@ pub(crate) mod tests {
     use coset::CoseKeyBuilder;
 
     use crate::tests::insta_settings;
-    use crate::v101::x509::tests::CERT_ECC;
     use crate::v101::x509::X509;
+    use crate::v101::x509::tests::CERT_ECC;
 
     use super::*;
 
@@ -385,7 +385,7 @@ pub(crate) mod tests {
     fn pub_key_cases() -> [(PkEnc, PkBody<'static>); 4] {
         let cert = X509::parse(CERT_ECC).unwrap();
 
-        let cases = [
+        [
             (
                 PkEnc::Crypto,
                 PkBody::Crypto(Cow::Borrowed(Bytes::new(&[0, 1, 2, 3, 4]))),
@@ -396,8 +396,7 @@ pub(crate) mod tests {
             ),
             (PkEnc::X5Chain, PkBody::X5Chain(CoseX509::One(cert))),
             (PkEnc::CoseKey, PkBody::CoseKey(cose_key())),
-        ];
-        cases
+        ]
     }
 
     #[test]

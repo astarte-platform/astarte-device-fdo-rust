@@ -28,9 +28,9 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::utils::OneOrMore;
-use crate::Error;
 
 /// ```cddl
 /// RendezvousInfo = [
@@ -432,14 +432,16 @@ pub(crate) mod tests {
     use super::*;
 
     pub(crate) fn create_rv_info() -> RendezvousInfo<'static> {
-        RendezvousInfo::new(vec![RendezvousDirective::new(vec![RendezvousInstr {
-            rv_variable: RvVariable::IPAddress,
-            rv_value: CborBstr::new(IpAddress::Ipv4([127, 0, 0, 1].into()))
-                .bytes()
-                .unwrap()
-                .clone(),
-        }])
-        .unwrap()])
+        RendezvousInfo::new(vec![
+            RendezvousDirective::new(vec![RendezvousInstr {
+                rv_variable: RvVariable::IPAddress,
+                rv_value: CborBstr::new(IpAddress::Ipv4([127, 0, 0, 1].into()))
+                    .bytes()
+                    .unwrap()
+                    .clone(),
+            }])
+            .unwrap(),
+        ])
         .unwrap()
     }
 

@@ -28,9 +28,9 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::{Message, Msgtype};
-use crate::Error;
 
 /// Indicates successful completion of the DI protocol.
 ///

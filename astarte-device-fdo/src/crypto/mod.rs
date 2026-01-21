@@ -22,21 +22,21 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::io::Write;
 
-use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::Error;
+use astarte_fdo_protocol::error::ErrorKind;
 use aws_lc_rs::rand::SecureRandom;
 use coset::iana::Algorithm as CoseAlgorithm;
 use coset::{CoseEncrypt0, CoseSign1, HeaderBuilder};
 use serde_bytes::ByteBuf;
 use tracing::{debug, error};
 
+use astarte_fdo_protocol::v101::Nonce;
 use astarte_fdo_protocol::v101::hash_hmac::{HMac, Hash, Hashtype};
 use astarte_fdo_protocol::v101::key_exchange::{
     AsEccKey, EcdhParams, KexSuitNames, XAKeyExchange, XBKeyExchange,
 };
 use astarte_fdo_protocol::v101::public_key::{PkEnc, PkType, PublicKey};
 use astarte_fdo_protocol::v101::sign_info::DeviceSgType;
-use astarte_fdo_protocol::v101::Nonce;
 use zeroize::Zeroizing;
 
 pub(crate) mod kdf;
@@ -199,7 +199,7 @@ pub trait Crypto {
                 return Err(Error::new(
                     ErrorKind::Invalid,
                     "unsupported or invalid cose signing algorithm and public key pair",
-                ))
+                ));
             }
         };
 
@@ -215,7 +215,7 @@ pub trait Crypto {
             Hashtype::Sha256 => &aws_lc_rs::digest::SHA256,
             Hashtype::Sha384 => &aws_lc_rs::digest::SHA384,
             Hashtype::HmacSha256 | Hashtype::HmacSha384 => {
-                return Err(Error::new(ErrorKind::Invalid, "hmac type instead of hash"))
+                return Err(Error::new(ErrorKind::Invalid, "hmac type instead of hash"));
             }
         };
 

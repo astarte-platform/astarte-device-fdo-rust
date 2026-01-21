@@ -57,9 +57,9 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::{ClientMessage, Message, Msgtype, NonceTo2ProveDv, NonceTo2SetupDv};
-use crate::Error;
 
 /// ```cddl
 /// TO2.Done = [

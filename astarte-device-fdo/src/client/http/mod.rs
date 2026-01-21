@@ -20,16 +20,16 @@
 
 use std::time::Duration;
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::error::ErrorMessage;
 use astarte_fdo_protocol::v101::{
-    ClientMessage, InitialMessage, Message, Msgtype, Protver, PROTOCOL_VERSION,
+    ClientMessage, InitialMessage, Message, Msgtype, PROTOCOL_VERSION, Protver,
 };
-use astarte_fdo_protocol::Error;
 use http::header::AUTHORIZATION;
-use http::{header, HeaderMap, StatusCode};
-use reqwest::header::{HeaderName, HeaderValue};
+use http::{HeaderMap, StatusCode, header};
 use reqwest::Method;
+use reqwest::header::{HeaderName, HeaderValue};
 use rustls::ClientConfig;
 use tracing::{error, trace, warn};
 use url::Url;

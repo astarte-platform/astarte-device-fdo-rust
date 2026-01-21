@@ -28,8 +28,8 @@ use std::ops::Deref;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteArray;
 
-use crate::error::ErrorKind;
 use crate::Error;
+use crate::error::ErrorKind;
 
 use super::utils::Hex;
 

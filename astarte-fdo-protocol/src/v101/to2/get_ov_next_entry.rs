@@ -34,9 +34,9 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::{ClientMessage, Message, Msgtype};
-use crate::Error;
 
 use super::ov_next_entry::OvNextEntry;
 

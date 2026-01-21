@@ -38,10 +38,10 @@ use std::io::Write;
 use coset::CborSerializable;
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::service_info::{ServiceInfo, ServiceInfoKv};
 use crate::v101::{ClientMessage, Message, Msgtype};
-use crate::Error;
 
 use super::owner_service_info::OwnerServiceInfo;
 

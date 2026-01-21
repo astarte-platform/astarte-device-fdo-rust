@@ -81,7 +81,7 @@ pub(crate) mod tests {
 
     #[test]
     fn use_macro() {
-        with_settings!({
+        self::with_settings!({
             assert_snapshot!("using the macro");
         });
     }

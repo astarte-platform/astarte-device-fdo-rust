@@ -25,6 +25,7 @@ use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::utils::CborBstr;
 use astarte_fdo_protocol::v101::device_credentials::DeviceCredential;
@@ -48,9 +49,8 @@ use astarte_fdo_protocol::v101::to2::prove_ov_hdr::{
 };
 use astarte_fdo_protocol::v101::{Message, NonceTo2ProveDv, NonceTo2ProveOv};
 use astarte_fdo_protocol::v101::{NonceTo2SetupDv, TransportProtocol};
-use astarte_fdo_protocol::Error;
-use coset::iana::EnumI64;
 use coset::HeaderBuilder;
+use coset::iana::EnumI64;
 use tracing::{debug, error, info, instrument, warn};
 use url::{Host, Url};
 

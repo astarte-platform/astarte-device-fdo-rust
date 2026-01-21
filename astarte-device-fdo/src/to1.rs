@@ -27,6 +27,7 @@ use std::borrow::Cow;
 use std::net::IpAddr;
 use std::time::Duration;
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::device_credentials::DeviceCredential;
 use astarte_fdo_protocol::v101::eat_signature::{EAT_NONCE, EAT_UEID};
@@ -42,17 +43,16 @@ use astarte_fdo_protocol::v101::to1::prove_to_rv::ProveToRv;
 use astarte_fdo_protocol::v101::to1::rv_redirect::RvRedirect;
 use astarte_fdo_protocol::v101::{DnsAddress, IpAddress};
 use astarte_fdo_protocol::v101::{NonceTo1Proof, Port};
-use astarte_fdo_protocol::Error;
 use coset::HeaderBuilder;
 use tracing::{debug, error, info, warn};
 use url::{Host, Url};
 use zeroize::Zeroizing;
 
+use crate::Ctx;
 use crate::client::http::{AuthClient, InitialClient};
 use crate::crypto::Crypto;
 use crate::storage::Storage;
 use crate::time::add_random_jitter;
-use crate::Ctx;
 
 /// From spec example
 const DEFAULT_DELAY: Duration = Duration::from_secs(120);

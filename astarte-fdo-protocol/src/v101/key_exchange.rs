@@ -24,8 +24,8 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
-use crate::error::ErrorKind;
 use crate::Error;
+use crate::error::ErrorKind;
 
 /// Returns the value as a Key
 pub trait AsEccKey<const N: usize, const M: usize> {

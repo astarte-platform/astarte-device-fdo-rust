@@ -47,11 +47,11 @@ use std::io::Write;
 use coset::{CoseSign1, TaggedCborSerializable};
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::public_key::PublicKey;
 use crate::v101::rendezvous_info::RendezvousInfo;
 use crate::v101::{Guid, Message, Msgtype, NonceTo2SetupDv};
-use crate::Error;
 
 /// ```cddl
 /// ;; This message replaces previous FIDO Device Onboard credentials with new ones
@@ -213,12 +213,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::tests::insta_settings;
+    use crate::v101::Nonce;
     use crate::v101::ownership_voucher::tests::ECC_SIGNATURE;
     use crate::v101::public_key::tests::PUB_KEY_ECC;
     use crate::v101::public_key::{PkBody, PkEnc, PkType};
     use crate::v101::rendezvous_info::{RendezvousDirective, RendezvousInstr};
     use crate::v101::tests::create_guid;
-    use crate::v101::Nonce;
 
     use super::*;
 

@@ -29,9 +29,9 @@ use coset::{AsCborValue, CoseSign1};
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::utils::CborBstr;
-use crate::Error;
 
 use super::hash_hmac::{HMac, Hash};
 use super::public_key::PublicKey;
@@ -353,13 +353,13 @@ pub(crate) mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::tests::insta_settings;
+    use crate::v101::PROTOCOL_VERSION;
     use crate::v101::hash_hmac::tests::{create_hash, create_hmac};
     use crate::v101::public_key::tests::PUB_KEY_ECC;
     use crate::v101::public_key::{PkBody, PkEnc, PkType};
     use crate::v101::rendezvous_info::tests::create_rv_info;
     use crate::v101::tests::{create_guid, from_hex};
     use crate::v101::x509::tests::create_cose_x509;
-    use crate::v101::PROTOCOL_VERSION;
 
     use super::*;
 

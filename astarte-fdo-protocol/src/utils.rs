@@ -27,8 +27,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 
-use crate::error::ErrorKind;
 use crate::Error;
+use crate::error::ErrorKind;
 
 /// A `bstr` for an encoded `cbor` value.
 #[derive(Debug, Clone, PartialEq, Eq)]

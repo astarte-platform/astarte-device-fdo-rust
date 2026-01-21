@@ -30,8 +30,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
-use crate::error::ErrorKind;
 use crate::Error;
+use crate::error::ErrorKind;
 
 /// ```cddl
 /// ServiceInfo = [

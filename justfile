@@ -256,9 +256,9 @@ astarte-clean:
 #
 #
 
-export CLEA_DEV_RV_DOMAIN := x"fdo-rendezvous.$CLEA_DEV_BASE"
-export CLEA_DEV_RV := x"https://fdo-rendezvous.$CLEA_DEV_BASE"
-export CLEA_DEV_API := x"https://api.astarte.$CLEA_DEV_BASE"
+export CLEA_DEV_RV_DOMAIN := x"fdo-rendezvous.${CLEA_DEV_BASE:-}"
+export CLEA_DEV_RV := x"https://fdo-rendezvous.${CLEA_DEV_BASE:-}"
+export CLEA_DEV_API := x"https://api.astarte.${CLEA_DEV_BASE:-}"
 
 # Setups clea-dev
 [group('clea-dev')]
@@ -285,9 +285,9 @@ clea-dev-healty:
 #
 #
 
-export BOARD_RV_DOMAIN := x"fdo-rendezvous.$BOARD_BASE_URL"
-export BOARD_RV := x"https://fdo-rendezvous.$BOARD_BASE_URL"
-export BOARD_API := x"https://${BOARD_API_PART:-api.astarte}.$BOARD_BASE_URL"
+export BOARD_RV_DOMAIN := x"fdo-rendezvous.${BOARD_BASE_URL:-}"
+export BOARD_RV := x"https://fdo-rendezvous.${BOARD_BASE_URL:-}"
+export BOARD_API := x"https://${BOARD_API_PART:-api.astarte}.${BOARD_BASE_URL:-}"
 export BOARD_MAN := x"http://fdo-manufactoring.astarte.host:8038"
 
 # Setups board

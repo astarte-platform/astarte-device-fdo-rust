@@ -32,10 +32,10 @@ use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::error::ErrorKind;
 use crate::v101::sign_info::EASigInfo;
 use crate::v101::{ClientMessage, Guid, InitialMessage, Message, Msgtype};
-use crate::Error;
 
 use super::hello_rv_ack::HelloRvAck;
 

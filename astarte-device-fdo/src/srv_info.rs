@@ -20,9 +20,9 @@
 
 use std::borrow::Cow;
 
+use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::service_info::ServiceInfoKv;
-use astarte_fdo_protocol::Error;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize, Serializer};
 use tracing::{error, trace, warn};
