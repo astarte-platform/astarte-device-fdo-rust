@@ -24,12 +24,7 @@ set -exEuo pipefail
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
 mf_info='[
-  {"dns":"localhost","device_port":"8041","owner_port":"8041","protocol":"http","ip":"127.0.0.1","delay_seconds":10},
-  {"device_port":"8041","owner_port":"8041","protocol":"http","ip":"192.168.122.1","delay_seconds":10}
-]'
-ow_info='[
-  {"dns":"localhost","port":"8043","protocol":"http","ip":"127.0.0.1","delay_seconds":10},
-  {"port":"8043","protocol":"http","ip":"192.168.122.1","delay_seconds":10}
+  {"dns":"fdo.astarte.localhost","device_port":"80","owner_port":"8041","protocol":"http","delay_seconds":10}
 ]'
 
 try_curl() {
@@ -43,4 +38,3 @@ send_req() {
 }
 
 send_req 'http://localhost:8038/api/v1/rvinfo' "$mf_info"
-send_req 'http://localhost:8043/api/v1/owner/redirect' "$ow_info"
