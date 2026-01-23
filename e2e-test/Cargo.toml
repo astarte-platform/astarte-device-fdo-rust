@@ -26,6 +26,10 @@ publish = false
 repository.workspace = true
 rust-version.workspace = true
 
+[features]
+default = []
+tpm = ["astarte-device-fdo/tpm"]
+
 [dependencies]
 astarte-device-fdo.workspace = true
 clap = { workspace = true, features = ["derive"] }

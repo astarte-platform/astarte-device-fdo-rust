@@ -17,7 +17,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![warn(missing_docs, rustdoc::missing_crate_level_docs)]
-#![allow(dead_code)]
 
 //! FIDO Device Onboarding protocol implementation
 
@@ -27,6 +26,7 @@ pub mod storage;
 
 pub mod di;
 pub mod to1;
+pub mod to2;
 
 pub use astarte_fdo_protocol;
 
