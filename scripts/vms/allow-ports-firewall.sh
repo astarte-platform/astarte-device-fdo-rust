@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025, 2026 SECO Mind Srl
@@ -16,13 +18,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Install deps"
-description: "Install dependencies needed to run the jobs"
-runs:
-  using: "composite"
-  steps:
-    - name: Install system dependencies
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install libtss2-dev
+set -exEuo pipefail
+
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+firewall-cmd --zone=libvirt \
+    --add-port=8038/tcp \
+    --add-port=8041/tcp \
+    --add-port=8043/tcp
