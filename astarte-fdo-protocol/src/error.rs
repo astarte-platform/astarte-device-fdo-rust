@@ -21,7 +21,7 @@
 use std::fmt::Display;
 
 /// Error for the protocol
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
     kind: ErrorKind,
     ctx: &'static str,
