@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This file is part of Astarte.
 #
 # Copyright 2025, 2026 SECO Mind Srl
@@ -16,13 +18,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: "Install deps"
-description: "Install dependencies needed to run the jobs"
-runs:
-  using: "composite"
-  steps:
-    - name: Install system dependencies
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install libtss2-dev
+set -exEuo pipefail
+
+# Trap -e errors
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
+cd "$REPOS/astarte"
+
+for i in {0..6}; do
+    if ! astartectl housekeeping realms create -y "$REALM" \
+        --astarte-url "$ASTARTE_API_URL" \
+        --realm-public-key "${REALM}_public.pem" \
+        -k compose/astarte-keys/housekeeping_private.pem; then
+        sleep 10
+    else
+        break
+    fi
+done
+
+astartectl housekeeping realms ls \
+    --astarte-url "$ASTARTE_API_URL" \
+    -k compose/astarte-keys/housekeeping_private.pem

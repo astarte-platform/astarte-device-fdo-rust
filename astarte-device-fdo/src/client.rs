@@ -34,7 +34,7 @@ use reqwest::StatusCode;
 use tracing::{debug, error, trace};
 use url::Url;
 
-use crate::crypto::Crypto;
+use crate::crypto::{Crypto, DefaultKeyExchange};
 
 const MIME: HeaderValue = HeaderValue::from_static("application/cbor");
 const MESSAGE_TYPE: HeaderName = HeaderName::from_static("message-type");
@@ -214,7 +214,10 @@ impl<A, E> Client<A, E> {
         Ok(value)
     }
 
-    async fn parse_enc_msg<T, C>(key: &C::KeyExchange, resp: reqwest::Response) -> Result<T, Error>
+    async fn parse_enc_msg<T, C>(
+        key: &DefaultKeyExchange,
+        resp: reqwest::Response,
+    ) -> Result<T, Error>
     where
         C: Crypto,
         T: Message,
@@ -239,11 +242,12 @@ impl<A, E> Client<A, E> {
 
 impl Client<NeedsAuth, NeedsEncryption> {
     /// Create the HTTP client from a base_url
-    pub fn create(base_url: Url) -> Result<Self, Error> {
+    pub fn create(base_url: Url, tls: rustls::ClientConfig) -> Result<Self, Error> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, MIME);
 
         let client = reqwest::ClientBuilder::new()
+            .use_preconfigured_tls(tls)
             .default_headers(headers)
             // TODO: consider 302 and 307 for redirect in TO1.HelloRV
             .redirect(reqwest::redirect::Policy::none())
@@ -334,7 +338,7 @@ impl Client<HeaderValue, NeedsEncryption> {
 
     pub(crate) async fn init_enc<T, C>(
         &mut self,
-        key: &C::KeyExchange,
+        key: &DefaultKeyExchange,
         msg: &T,
     ) -> Result<T::Response<'static>, Error>
     where
@@ -347,14 +351,14 @@ impl Client<HeaderValue, NeedsEncryption> {
     }
 }
 
-impl<E> Client<HeaderValue, E> {
+impl Client<HeaderValue, DefaultKeyExchange> {
     pub(crate) async fn send_enc<T, C>(
         &mut self,
         ctx: &mut C,
         msg: &T,
     ) -> Result<T::Response<'static>, Error>
     where
-        C: Crypto<KeyExchange = E>,
+        C: Crypto,
         T: ClientMessage,
     {
         let msg = EncMessage::create(&mut self.buf, ctx, &self.key, msg)?;
@@ -374,7 +378,7 @@ impl<T> EncMessage<T> {
     fn create<C>(
         buf: &mut Vec<u8>,
         ctx: &mut C,
-        key: &C::KeyExchange,
+        key: &DefaultKeyExchange,
         msg: &T,
     ) -> Result<Self, Error>
     where

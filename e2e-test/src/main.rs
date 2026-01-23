@@ -23,8 +23,10 @@ use astarte_device_fdo::client::Client;
 use astarte_device_fdo::crypto::software::SoftwareCrypto;
 use astarte_device_fdo::crypto::Crypto;
 use astarte_device_fdo::di::Di;
+use astarte_device_fdo::srv_info::{AstarteMod, AstarteModBuilder, SkipServiceInfo};
 use astarte_device_fdo::storage::{FileStorage, Storage};
 use astarte_device_fdo::to1::To1;
+use astarte_device_fdo::to2::{Hello, To2};
 use astarte_device_fdo::Ctx;
 use clap::{Parser, Subcommand};
 use eyre::{bail, eyre};
@@ -52,6 +54,26 @@ enum Command {
         #[command(subcommand)]
         proto: Protocol,
     },
+    #[cfg(feature = "tpm")]
+    UseTpm {
+        // TODO: remove
+        #[arg(long, default_value = ".tmp/fdo-astarte")]
+        storage: PathBuf,
+
+        /// TPM connecting string `device:/dev/tpmrm0`
+        #[arg(long)]
+        tpm_connection: Option<String>,
+
+        /// PCRs registers to measure
+        ///
+        /// Defaults to: 0,1,5      Firmware, Options, GPT
+        ///              7          Secure Boot
+        #[arg(long, default_values_t = vec![0,1,5,7])]
+        pcrs: Vec<u8>,
+
+        #[command(subcommand)]
+        proto: Protocol,
+    },
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -71,7 +93,10 @@ enum Protocol {
         #[arg(long)]
         export_guid: Option<PathBuf>,
     },
-    To {},
+    To {
+        #[arg(long)]
+        astarte_mod: bool,
+    },
 }
 
 impl Protocol {
@@ -96,7 +121,7 @@ impl Protocol {
                 model_no,
                 export_guid,
             } => {
-                let client = Client::create(manufacturing_url)?;
+                let client = Client::create(manufacturing_url, ctx.tls().clone())?;
 
                 let di = Di::create(ctx, client, &model_no, &serial_no).await?;
 
@@ -115,12 +140,41 @@ impl Protocol {
                     info!(path = %path.display(), "guid exported");
                 }
             }
-            Protocol::To {} => {
+            Protocol::To { astarte_mod } => {
                 let Some(dc) = Di::read_existing(ctx).await? else {
                     bail!("device credentials missing, DI not yet completed");
                 };
 
-                let _rv = To1::new(&dc).rv_owner(ctx).await?;
+                if !dc.dc_active {
+                    info!("device change TO already run to completion");
+
+                    let dv = To2::<'_, AstarteModBuilder, Hello>::read_existing(ctx).await?;
+
+                    info!(?dv, "Astarte mod already stored");
+
+                    return Ok(());
+                }
+
+                // TODO: this should be the same from the mfg_info
+                let sn = uuid::Uuid::now_v7().to_string();
+
+                let rv = To1::new(&dc).rv_owner(ctx).await?;
+
+                if astarte_mod {
+                    let (to2, srv_mod) = To2::create(dc, rv, &sn, AstarteMod::builder())?
+                        .to2_change(ctx)
+                        .await?;
+
+                    info!(?srv_mod, "credentials received");
+
+                    to2.done(ctx).await?;
+                } else {
+                    let (to2, ()) = To2::create(dc, rv, &sn, SkipServiceInfo::default())?
+                        .to2_change(ctx)
+                        .await?;
+
+                    to2.done(ctx).await?;
+                }
             }
         }
 
@@ -147,13 +201,43 @@ async fn main() -> eyre::Result<()> {
         .install_default()
         .map_err(|_| eyre!("couldn't install crypto provider"))?;
 
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "platform-tls")] {
+            use rustls_platform_verifier::BuilderVerifierExt;
+            let tls = rustls::ClientConfig::builder().with_platform_verifier()?.with_no_client_auth();
+        } else if #[cfg(feature = "webpki-roots")] {
+            let tls = rustls::ClientConfig::builder().with_root_certificates(root_store).with_no_client_auth();
+        } else {
+            compile_error!("select one betwee platform-tls and webpki-roots for TLS")
+        }
+    };
+
+    let tls = tls;
+
     match cli.command {
         Command::PlainFs { storage, proto } => {
             let mut storage = FileStorage::open(storage).await?;
-
             let mut crypto = SoftwareCrypto::create(storage.clone()).await?;
+            let mut ctx = Ctx::new(&mut crypto, &mut storage, tls);
+            proto.run(&mut ctx).await?;
+        }
+        #[cfg(feature = "tpm")]
+        Command::UseTpm {
+            storage,
+            tpm_connection,
+            pcrs,
+            proto,
+        } => {
+            use astarte_device_fdo::crypto::tpm::Tpm;
 
-            let mut ctx = Ctx::new(&mut crypto, &mut storage);
+            let mut storage = FileStorage::open(storage).await?;
+            let mut tpm = if let Some(tpm_connection) = &tpm_connection {
+                Tpm::with_connection(&storage, tpm_connection, &pcrs).await?
+            } else {
+                Tpm::with_pcrs(&storage, &pcrs).await?
+            };
+
+            let mut ctx = Ctx::new(&mut tpm, &mut storage, tls);
 
             proto.run(&mut ctx).await?;
         }

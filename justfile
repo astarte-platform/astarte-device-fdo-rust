@@ -26,6 +26,8 @@ export CONTAINER := if which("podman") != "" {
     "podman"
 } else if which("docker") != "" {
     "docker"
+} else if which("podman-remote") != "" {
+    "podman-remote"
 } else {
     error("no container runtime")
 }
@@ -35,7 +37,12 @@ export FDO_DEVICE_GUID := "./.tmp/fdo/device_guid.txt"
 export REPOS := "./.tmp/repos"
 export CONTAINER_CACHE := "./.tmp/cache/containers"
 
-export GO_SERVER_REF := "01a7aa7be9f58f17ad40242380e3e92b169bc307"
+export GO_SERVER_REF := "ade68cda47d4281b8bea8248f45c43cbe1f8bca7"
+
+export ASTARTE_DIR := "./.tmp/astarte"
+export ASTARTE_API_URL := "http://api.astarte.localhost"
+export REALM := "test"
+export FDO_REALM := "test"
 
 # Print this help message
 help:
@@ -52,7 +59,7 @@ build-tpm2-tss:
     ./scripts/tpm/build-tpm2-tss.sh
 
 # Clean
-clean: go-server-stop
+clean: go-server-stop astarte-clean
     -./scripts/vms/vish-destroy.sh
     -rm -rvf "$FDODIR"
     -rm -rvf "./.tmp/fdo-astarte"
@@ -95,7 +102,7 @@ go-server-run: go-server-start go-server-create-rv-info
 # Initialize the fdo files and container
 [group('server')]
 go-server-clone:
-    ./scripts/go-fdo/clone.sh \
+    ./scripts/common/clone.sh \
         https://github.com/fido-device-onboard/go-fdo-server.git \
         go-fdo-server "$GO_SERVER_REF"
 
@@ -124,9 +131,9 @@ go-server-stop:
 # Check health of servers
 [group('server')]
 go-server-health:
-    curl --fail --retry 3 --retry-delay 2 --retry-connrefused http://localhost:8041/health  # Rendezvous
-    curl --fail --retry 3 --retry-delay 2 --retry-connrefused http://localhost:8038/health  # Manufacturing
-    curl --fail --retry 3 --retry-delay 2 --retry-connrefused http://localhost:8043/health  # Owner
+    ./scripts/common/try-curl.sh http://localhost:8041/health  # Rendezvous
+    ./scripts/common/try-curl.sh http://localhost:8038/health  # Manufacturing
+    ./scripts/common/try-curl.sh http://localhost:8043/health  # Owner
 
 # Run the go servers and checks the health
 [group('server')]
@@ -140,8 +147,8 @@ go-server-create-rv-info:
 # Check the rendezvous information
 [group('server')]
 go-server-get-rv-info:
-    curl --fail --location --request GET 'http://localhost:8038/api/v1/rvinfo' | jq
-    curl --fail --location --request GET 'http://localhost:8043/api/v1/owner/redirect' | jq
+    ./scripts/common/try-curl.sh 'http://localhost:8038/api/v1/rvinfo' | jq
+    ./scripts/common/try-curl.sh 'http://localhost:8043/api/v1/owner/redirect' | jq
 
 
 # Sends the Manufacturing voucher to the owner TO0
@@ -152,7 +159,7 @@ go-server-to0:
 # Use the go client to do all the FDO
 [group('server')]
 go-client-basic-onboarding:
-    ./scripts/go-fdo/clone.sh \
+    ./scripts/common/clone.sh \
         https://github.com/fido-device-onboard/go-fdo-client.git \
         go-fdo-client \
         21cb545547f06f77cba3aad2aa45fc1d1eeee781
@@ -165,10 +172,80 @@ go-client-basic-onboarding:
 
 # Launch the VM
 [group('vm')]
+vm-setup:
+    ./scripts/vms/vm-setup.sh
+
+# Launch the VM
+[group('vm')]
 vm-launch:
     ./scripts/vms/vish-launch.sh
 
+# Runs FDO in a VM with a TPM
+[group('vm')]
+vm-run: go-server-run vm-client-run
+
+# SSH into the VM and runs the client
+[group('vm')]
+vm-client-run: vm-client-di go-server-to0 vm-client-to
+
 # SSH into the VM and runs the example
 [group('vm')]
-vm-run:
-    ./scripts/run-on-vm.sh
+vm-client-di:
+    ./scripts/vms/run-di.sh
+
+# SSH into the VM and runs the example
+[group('vm')]
+vm-client-to:
+    ./scripts/vms/run-to.sh
+
+# Launch the VM
+[group('vm')]
+vm-clean:
+    ./scripts/vms/vish-destroy.sh
+
+####
+# Astarte
+#
+
+# Setups astarte
+[group('astarte')]
+astarte-setup: astarte-clone astarte-genkeys go-server-setup astarte-build astarte-healty astarte-create-realm
+
+# Builds and starts astarte
+[group('astarte')]
+astarte-run: go-server-start astarte-rv-info client-di astarte-send-to0 client-to
+
+[group('astarte')]
+astarte-clone:
+    ./scripts/common/clone.sh \
+        https://github.com/astarte-platform/astarte.git \
+        astarte \
+        origin/feat/fido-device-onboard
+
+[group('astarte')]
+astarte-genkeys:
+    ./scripts/astarte/gen-keys.sh
+
+[group('astarte')]
+astarte-build:
+    ./scripts/astarte/build.sh
+
+[group('astarte')]
+astarte-create-realm:
+    ./scripts/astarte/create-realm.sh
+
+[group('astarte')]
+astarte-rv-info:
+    ./scripts/astarte/create-rv-info.sh
+
+[group('astarte')]
+astarte-send-to0:
+    ./scripts/astarte/send-to0.sh
+
+[group('astarte')]
+astarte-healty:
+    ./scripts/astarte/healthy.sh
+
+[group('astarte')]
+astarte-clean:
+    -./scripts/astarte/clean.sh
