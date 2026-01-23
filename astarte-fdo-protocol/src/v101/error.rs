@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -348,6 +348,8 @@ pub enum Timestamp<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::insta_settings;
+
     use super::*;
 
     #[test]
@@ -367,7 +369,9 @@ mod tests {
 
         assert_eq!(res, error_msg);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 
     #[test]
@@ -380,8 +384,10 @@ mod tests {
             None,
         );
 
-        insta::assert_snapshot!(error_msg);
-        insta::assert_debug_snapshot!(error_msg);
+        insta_settings!({
+            insta::assert_snapshot!(error_msg);
+            insta::assert_debug_snapshot!(error_msg);
+        });
 
         let error_msg = ErrorMessage {
             e_m_error_code: 9000,
@@ -391,8 +397,10 @@ mod tests {
             e_m_error_c_i_d: None,
         };
 
-        insta::assert_snapshot!(error_msg);
-        insta::assert_debug_snapshot!(error_msg);
+        insta_settings!({
+            insta::assert_snapshot!(error_msg);
+            insta::assert_debug_snapshot!(error_msg);
+        });
     }
 
     #[test]
@@ -438,6 +446,8 @@ mod tests {
         .map(|e| e.to_string())
         .join("\n");
 
-        insta::assert_snapshot!(error_codes);
+        insta_settings!({
+            insta::assert_snapshot!(error_codes);
+        });
     }
 }

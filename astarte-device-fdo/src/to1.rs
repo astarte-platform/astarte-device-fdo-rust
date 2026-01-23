@@ -44,13 +44,14 @@ use astarte_fdo_protocol::v101::{DnsAddress, IpAddress};
 use astarte_fdo_protocol::v101::{NonceTo1Proof, Port};
 use astarte_fdo_protocol::Error;
 use coset::HeaderBuilder;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, warn};
 use url::{Host, Url};
 use zeroize::Zeroizing;
 
-use crate::client::Client;
+use crate::client::http::{AuthClient, InitialClient};
 use crate::crypto::Crypto;
 use crate::storage::Storage;
+use crate::time::add_random_jitter;
 use crate::Ctx;
 
 /// From spec example
@@ -292,8 +293,13 @@ impl<'a> To1<'a, Hello> {
         // TODO: impl actual retry
         for _ in 0..10 {
             for i in self.device_creds.dc_rv_info.iter() {
+                // Skip delay on first try
                 if let Some(delay) = delay {
-                    self.wait_for(delay).await?
+                    let delay = add_random_jitter(delay);
+
+                    info!(seconds = delay.as_secs(), "waiting before retrying");
+
+                    tokio::time::sleep(delay).await;
                 }
 
                 let Some(rv) = RvDevBuilder::try_from(i)? else {
@@ -326,11 +332,12 @@ impl<'a> To1<'a, Hello> {
     {
         match rv.protocol() {
             RvProtocolValue::Rest => {
-                if let Some(ack) = self.http_instr(ctx, rv).await? {
+                // Check the HTTPs before the http
+                if let Some(ack) = self.https_instr(ctx, rv).await? {
                     return Ok(Some(ack));
                 }
 
-                if let Some(ack) = self.https_instr(ctx, rv).await? {
+                if let Some(ack) = self.http_instr(ctx, rv).await? {
                     return Ok(Some(ack));
                 }
 
@@ -433,22 +440,22 @@ impl<'a> To1<'a, Hello> {
         &self,
         ctx: &mut Ctx<'_, C, S>,
         url: Url,
-    ) -> Result<(HelloRvAck<'static>, Client), Error>
+    ) -> Result<(HelloRvAck<'static>, AuthClient), Error>
     where
         C: Crypto,
     {
-        let mut client = Client::create(url)?;
+        let mut client = InitialClient::create(url, ctx.tls().clone())?;
 
         let sg_type = ctx.crypto.sign_info_type();
 
         let (ack, auth) = client
-            .init(&HelloRv::new(
+            .send(&HelloRv::new(
                 self.device_creds.dc_guid,
                 EASigInfo(SigInfo::new(sg_type)),
             ))
             .await?;
 
-        Ok((ack, client.set_auth(auth)))
+        Ok((ack, client.into_session(auth)))
     }
 
     // TODO: check the certificate validity following the spec
@@ -456,55 +463,27 @@ impl<'a> To1<'a, Hello> {
         &self,
         ctx: &mut Ctx<'_, C, S>,
         url: Url,
-    ) -> Result<(HelloRvAck<'static>, Client), Error>
+    ) -> Result<(HelloRvAck<'static>, AuthClient), Error>
     where
         C: Crypto,
     {
-        let mut client = Client::create(url)?;
+        let mut client = InitialClient::create(url, ctx.tls().clone())?;
 
         let sg_type = ctx.crypto.sign_info_type();
 
         let (ack, auth) = client
-            .init(&HelloRv::new(
+            .send(&HelloRv::new(
                 self.device_creds.dc_guid,
                 EASigInfo(SigInfo::new(sg_type)),
             ))
             .await?;
 
-        Ok((ack, client.set_auth(auth)))
-    }
-
-    #[instrument(skip(self))]
-    async fn wait_for(&self, mut delay: Duration) -> Result<(), Error> {
-        // Use millis to produce a non empty range when approximating (secs/100)
-        // random range up to 25%
-        let add =
-            i64::try_from(delay.as_millis().div_euclid(100).saturating_mul(25)).map_err(|err| {
-                error!(error = %err, "couldn't calculate the range from delay");
-
-                Error::new(ErrorKind::OutOfRange, "overflow")
-            })?;
-
-        let range = rand::random_range(-add..add);
-
-        let add = Duration::from_millis(range.unsigned_abs());
-
-        if range.is_negative() {
-            delay -= add;
-        } else {
-            delay += add;
-        }
-
-        info!("waiting for {}s before retrying", delay.as_secs());
-
-        tokio::time::sleep(delay).await;
-
-        Ok(())
+        Ok((ack, client.into_session(auth)))
     }
 }
 
 struct Ack {
-    client: Client,
+    client: AuthClient,
     nonce: NonceTo1Proof,
 }
 
@@ -550,16 +529,17 @@ impl<'a> To1<'a, Ack> {
 }
 
 struct Prove {
-    client: Client,
+    client: AuthClient,
     proof: ProveToRv,
 }
 
 impl<'a> To1<'a, Prove> {
     async fn run(mut self) -> Result<RvRedirect, Error> {
-        let msg = self.state.client.send_msg(&self.state.proof).await?;
+        let msg = self.state.client.send(&self.state.proof).await?;
 
         info!("To1.ProveToRv sent");
 
+        // Check if we can parse the rv_to2_addr before succeeding
         let addr = msg.rv_to2_addr()?;
 
         debug!(?addr);
