@@ -23,8 +23,12 @@ set -exEuo pipefail
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
-mf_info='[{"dns":"localhost","device_port":"8041","owner_port":"8041","protocol":"http","ip":"127.0.0.1"}]'
-ow_info='[{"dns":"localhost","port":"8043","protocol":"http","ip":"127.0.0.1"}]'
+mf_info='[
+  {"dns":"fdo-rendezvous.clea-dev.midgar.services","device_port":"443","owner_port":"443","protocol":"https","delay_seconds":10}
+]'
+ow_info='[
+  {"dns":"localhost","port":"8043","protocol":"http","ip":"127.0.0.1","delay_seconds":10}
+]'
 
 try_curl() {
     curl --fail --location --retry 3 --retry-delay 2 --retry-connrefused "$@"
