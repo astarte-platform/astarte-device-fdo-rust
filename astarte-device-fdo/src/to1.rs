@@ -326,11 +326,11 @@ impl<'a> To1<'a, Hello> {
     {
         match rv.protocol() {
             RvProtocolValue::Rest => {
-                if let Some(ack) = self.http_instr(ctx, rv).await? {
+                if let Some(ack) = self.https_instr(ctx, rv).await? {
                     return Ok(Some(ack));
                 }
 
-                if let Some(ack) = self.https_instr(ctx, rv).await? {
+                if let Some(ack) = self.http_instr(ctx, rv).await? {
                     return Ok(Some(ack));
                 }
 
@@ -560,6 +560,7 @@ impl<'a> To1<'a, Prove> {
 
         info!("To1.ProveToRv sent");
 
+        // Check if we can parse the rv_to2_addr before succeeding
         let addr = msg.rv_to2_addr()?;
 
         debug!(?addr);
