@@ -34,7 +34,6 @@ use astarte_fdo_protocol::v101::key_exchange::XAKeyExchange;
 use astarte_fdo_protocol::v101::ownership_voucher::OvHeader;
 use astarte_fdo_protocol::v101::public_key::PublicKey;
 use astarte_fdo_protocol::v101::rv_to2_addr::{RvTo2Addr, RvTo2AddrEntry};
-use astarte_fdo_protocol::v101::service_info::ServiceInfo;
 use astarte_fdo_protocol::v101::sign_info::{EASigInfo, SigInfo};
 use astarte_fdo_protocol::v101::to1::rv_redirect::RvRedirect;
 use astarte_fdo_protocol::v101::to2::device_service_info::DeviceServiceInfo;
@@ -52,13 +51,14 @@ use astarte_fdo_protocol::v101::{NonceTo2SetupDv, TransportProtocol};
 use astarte_fdo_protocol::Error;
 use coset::iana::EnumI64;
 use coset::HeaderBuilder;
-use reqwest::header::HeaderValue;
 use tracing::{debug, error, info, instrument, warn};
 use url::{Host, Url};
 
-use crate::client::Client;
-use crate::crypto::{Crypto, DefaultKeyExchange};
-use crate::Ctx;
+use crate::client::http::{AuthClient, EncryptedClient, InitialClient};
+use crate::crypto::Crypto;
+use crate::di::DEVICE_CREDS;
+use crate::srv_info::ServiceInfoDecode;
+use crate::{Ctx, Storage};
 
 const MAX_DEVICE_MESSAGE_SIZE: u16 = 0;
 
@@ -144,9 +144,13 @@ impl Address {
     }
 }
 
+const ASTARTE_MOD_PATH: &str = "astarte.mod.cbor";
+
 /// TO2 protocol
-pub struct To2<S> {
+pub struct To2<'a, D, S> {
     device_creds: DeviceCredential<'static>,
+    sn: &'a str,
+    service_info: D,
     state: S,
 }
 
@@ -156,9 +160,14 @@ pub struct Hello {
     addresses: Vec<Address>,
 }
 
-impl To2<Hello> {
+impl<'a, D> To2<'a, D, Hello> {
     /// Create the TO2 client
-    pub fn create(device_creds: DeviceCredential<'static>, rv: RvRedirect) -> Result<Self, Error> {
+    pub fn create(
+        device_creds: DeviceCredential<'static>,
+        rv: RvRedirect,
+        sn: &'a str,
+        service_info: D,
+    ) -> Result<Self, Error> {
         let addresses = rv
             .rv_to2_addr()
             .and_then(|blob| Address::rv_to2_addr_decode(blob.take_to1d_rv()))?;
@@ -168,6 +177,8 @@ impl To2<Hello> {
         Ok(Self {
             device_creds,
             state,
+            sn,
+            service_info,
         })
     }
 
@@ -175,9 +186,11 @@ impl To2<Hello> {
     pub async fn to2_change<C, S>(
         self,
         ctx: &mut Ctx<'_, C, S>,
-    ) -> Result<ServiceInfo<'static>, Error>
+    ) -> Result<(To2<'a, D, DvDone>, D::Output), Error>
     where
         C: Crypto,
+        S: Storage,
+        D: ServiceInfoDecode<'static>,
     {
         info!("To2 started");
 
@@ -186,11 +199,27 @@ impl To2<Hello> {
         let prove_dv = verify.run(ctx).await?;
         let setup = prove_dv.run(ctx).await?;
         let ready = setup.run(ctx).await?;
-        let srv_info = ready.run(ctx).await?;
 
-        info!("To2 finished successfully");
+        ready.run(ctx).await
+    }
 
-        Ok(srv_info)
+    /// Read an already stored Astarte mod
+    pub async fn read_existing<C, S>(ctx: &mut Ctx<'_, C, S>) -> Result<Option<D::Output>, Error>
+    where
+        S: Storage,
+        D: ServiceInfoDecode<'static>,
+    {
+        let Some(buf) = ctx.storage.read(ASTARTE_MOD_PATH).await? else {
+            return Ok(None);
+        };
+
+        ciborium::from_reader(buf.as_slice())
+            .map(Some)
+            .map_err(|error| {
+                error!(%error, "couldn't decode Astarte mod");
+
+                Error::new(ErrorKind::Decode, "couldn't decode Astarte mod")
+            })
     }
 
     async fn hello<C, S>(&self, ctx: &mut Ctx<'_, C, S>) -> Result<HelloDevice<'static>, Error>
@@ -209,7 +238,7 @@ impl To2<Hello> {
         ))
     }
 
-    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<Prove>, Error>
+    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, D, Prove>, Error>
     where
         C: Crypto,
     {
@@ -219,6 +248,8 @@ impl To2<Hello> {
                     Ok((hello_device, hdr, client)) => {
                         return Ok(To2 {
                             device_creds: self.device_creds,
+                            sn: self.sn,
+                            service_info: self.service_info,
                             state: Prove {
                                 hello_device,
                                 rv: self.state.rv,
@@ -244,19 +275,19 @@ impl To2<Hello> {
         &self,
         ctx: &mut Ctx<'_, C, S>,
         base_url: &Url,
-    ) -> Result<(HelloDevice<'static>, ProveOvHdr, Client), Error>
+    ) -> Result<(HelloDevice<'static>, ProveOvHdr, AuthClient), Error>
     where
         C: Crypto,
     {
-        let mut client = Client::create(base_url.clone())?;
+        let mut client = InitialClient::create(base_url.clone(), ctx.tls.clone())?;
 
         let hello = self.hello(ctx).await?;
 
-        let (pv_ov, auth) = client.init(&hello).await?;
+        let (pv_ov, auth) = client.send(&hello).await?;
 
         info!("To2.HelloDevice sent");
 
-        Ok((hello, pv_ov, client.set_auth(auth)))
+        Ok((hello, pv_ov, client.into_session(auth)))
     }
 }
 
@@ -264,11 +295,11 @@ struct Prove {
     hello_device: HelloDevice<'static>,
     rv: RvRedirect,
     hdr: ProveOvHdr,
-    client: Client,
+    client: AuthClient,
 }
 
-impl To2<Prove> {
-    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<VerifyChain>, Error>
+impl<'a, D> To2<'a, D, Prove> {
+    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, D, VerifyChain>, Error>
     where
         C: Crypto,
     {
@@ -331,7 +362,7 @@ impl To2<Prove> {
                 None,
             );
 
-            self.state.client.send_err(&err_msg).await;
+            self.state.client.send_err(&err_msg).await?;
 
             return Err(err);
         }
@@ -349,6 +380,8 @@ impl To2<Prove> {
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
+            service_info: self.service_info,
             state: VerifyChain {
                 hdr,
                 payload,
@@ -367,11 +400,11 @@ struct VerifyChain {
     // TODO: do we need to check this?
     // dev_chain_hash: Hash<'static>,
     // dev_chain_hash: Hash<'static>,
-    client: Client,
+    client: AuthClient,
 }
 
-impl To2<VerifyChain> {
-    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<ProveDv>, Error>
+impl<'a, D> To2<'a, D, VerifyChain> {
+    async fn run<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, D, ProveDv>, Error>
     where
         C: Crypto,
     {
@@ -409,7 +442,7 @@ impl To2<VerifyChain> {
             let entry = self
                 .state
                 .client
-                .send_msg(&GetOvNextEntry::new(ov_entry_num))
+                .send(&GetOvNextEntry::new(ov_entry_num))
                 .await?;
 
             info!("To2.GetOvNextEntry sent");
@@ -439,6 +472,8 @@ impl To2<VerifyChain> {
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
+            service_info: self.service_info,
             state: ProveDv {
                 ov_header: self.state.payload.ov_header,
                 // ow_pubkey: variable.pub_key,
@@ -520,11 +555,11 @@ struct ProveDv {
     // owner_sing_info: EBSigInfo<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     x_a_key_exchange: XAKeyExchange<'static>,
-    client: Client,
+    client: AuthClient,
 }
 
-impl To2<ProveDv> {
-    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<Setup<C>>, Error>
+impl<'a, D> To2<'a, D, ProveDv> {
+    async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, D, Setup<C>>, Error>
     where
         C: Crypto,
     {
@@ -573,12 +608,13 @@ impl To2<ProveDv> {
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
+            service_info: self.service_info,
             state: Setup {
                 ov_header: self.state.ov_header,
                 nonce_setup_dv,
                 prove_dv,
-                client: self.state.client,
-                key,
+                client: self.state.client.into_encrypted(key),
                 _marker: PhantomData,
                 nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
             },
@@ -594,28 +630,22 @@ where
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_setup_dv: NonceTo2SetupDv,
     prove_dv: ProveDevice,
-    client: Client,
-    key: DefaultKeyExchange,
+    client: EncryptedClient,
     _marker: PhantomData<C>,
 }
 
 // TODO: check for credential reuse and send CRED_REUSE_ERROR, or actually support credential reuse
 //
 // https://fidoalliance.org/specs/FDO/FIDO-Device-Onboard-PS-v1.1-20220419/FIDO-Device-Onboard-PS-v1.1-20220419.html#credreuse
-impl<C> To2<Setup<C>>
+impl<'a, C, D> To2<'a, D, Setup<C>>
 where
     C: Crypto,
 {
-    async fn run<S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<DvReady<C>>, Error>
+    async fn run<S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<To2<'a, D, DvReady>, Error>
     where
         C: Crypto,
     {
-        // TODO: save the new setup to create the new device credentials
-        let setup_dv = self
-            .state
-            .client
-            .init_enc::<_, C>(&self.state.key, &self.state.prove_dv)
-            .await?;
+        let setup_dv = self.state.client.send(ctx, &self.state.prove_dv).await?;
 
         info!("To2.ProveDevice succeeded");
 
@@ -632,8 +662,6 @@ where
         }
         info!("To2.SetupDevice nonce verified");
 
-        let client = self.state.client.set_enckey(self.state.key);
-
         info!("To2.SetupDevice done");
 
         // TODO credential reuse check
@@ -647,10 +675,11 @@ where
 
         Ok(To2 {
             device_creds: self.device_creds,
+            sn: self.sn,
+            service_info: self.service_info,
             state: DvReady {
                 dv_srv_info_ready: DeviceServiceInfoReady::new(Some(hmac), None),
-                client,
-                _marker: PhantomData,
+                client: self.state.client,
                 nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
                 nonce_to2_setup_dv: self.state.nonce_setup_dv,
             },
@@ -658,29 +687,26 @@ where
     }
 }
 
-struct DvReady<C>
-where
-    C: Crypto,
-{
+struct DvReady {
     dv_srv_info_ready: DeviceServiceInfoReady<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_to2_setup_dv: NonceTo2SetupDv,
-    client: Client<HeaderValue, DefaultKeyExchange>,
-    _marker: PhantomData<C>,
+    client: EncryptedClient,
 }
 
-impl<C> To2<DvReady<C>>
-where
-    C: Crypto,
-{
-    async fn run<S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<ServiceInfo<'static>, Error>
+impl<'a, D> To2<'a, D, DvReady> {
+    async fn run<C, S>(
+        mut self,
+        ctx: &mut Ctx<'_, C, S>,
+    ) -> Result<(To2<'a, D, DvDone>, D::Output), Error>
     where
         C: Crypto,
+        D: ServiceInfoDecode<'static>,
     {
         let own_srv_info_ready = self
             .state
             .client
-            .send_enc(ctx.crypto, &self.state.dv_srv_info_ready)
+            .send(ctx, &self.state.dv_srv_info_ready)
             .await?;
 
         info!(
@@ -689,17 +715,14 @@ where
         );
 
         // TODO: this part should be improved
-        let device_srv_info = DeviceServiceInfo::example();
+        let device_srv_info = DeviceServiceInfo::example(self.sn);
 
-        let mut srv_info = Vec::new();
+        self.service_info.reset()?;
+
         loop {
             info!("To2.DeviceServiceInfo started");
 
-            let own_srv_info = self
-                .state
-                .client
-                .send_enc(ctx.crypto, &device_srv_info)
-                .await?;
+            let own_srv_info = self.state.client.send(ctx, &device_srv_info).await?;
 
             debug!(?own_srv_info, "Owner service info");
 
@@ -708,20 +731,70 @@ where
                 "To2.OwnerServiceInfo received"
             );
 
-            srv_info.extend(own_srv_info.service_info);
+            for i in &own_srv_info.service_info {
+                self.service_info.decode(i)?;
+            }
 
             if own_srv_info.is_done {
                 break;
             }
         }
 
+        let srv_mod = self.service_info.finalize()?;
+
         info!("To2.OwnerServiceInfo done");
 
+        let this = To2 {
+            device_creds: self.device_creds,
+            sn: self.sn,
+            service_info: self.service_info,
+            state: DvDone {
+                nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
+                nonce_to2_setup_dv: self.state.nonce_to2_setup_dv,
+                client: self.state.client,
+            },
+        };
+
+        Ok((this, srv_mod))
+    }
+}
+
+/// Final message for the FDO
+pub struct DvDone {
+    nonce_to2_prove_dv: NonceTo2ProveDv,
+    nonce_to2_setup_dv: NonceTo2SetupDv,
+    client: EncryptedClient,
+}
+
+impl<'a, D> To2<'a, D, DvDone> {
+    /// Finishes the transfer protocol.
+    ///
+    /// This should be called after establishing a connection with the Cloud.
+    pub async fn done<C, S>(mut self, ctx: &mut Ctx<'_, C, S>) -> Result<(), Error>
+    where
+        C: Crypto,
+        S: Storage,
+    {
         let done = self
             .state
             .client
-            .send_enc(ctx.crypto, &Done::new(self.state.nonce_to2_prove_dv))
+            .send(ctx, &Done::new(self.state.nonce_to2_prove_dv))
             .await?;
+
+        // TODO: separate store credentials
+        // TODO: update the hmac, rvinfo, guid, ovpubkey
+        // TODO: add a message to permit multiple FDO
+        // TODO: connect to astarte before chainging this
+        self.device_creds.dc_active = false;
+
+        let mut buf = Vec::new();
+        ciborium::into_writer(&self.device_creds, &mut buf).map_err(|err| {
+            error!(error = %err, "couldn't encode device credentials");
+
+            Error::new(ErrorKind::Encode, "device credentials")
+        })?;
+
+        ctx.storage.overwrite(DEVICE_CREDS, &buf).await?;
 
         if *done.nonce() != self.state.nonce_to2_setup_dv {
             return Err(Error::new(
@@ -732,6 +805,6 @@ where
 
         info!("To2.Done finished");
 
-        Ok(srv_info)
+        Ok(())
     }
 }
