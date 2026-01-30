@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -143,6 +143,8 @@ impl From<DeviceSgType> for i64 {
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
+
     use super::*;
 
     #[test]
@@ -166,7 +168,9 @@ mod tests {
 
             assert_eq!(res, case);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
+            insta_settings!({
+                insta::assert_binary_snapshot!(".cbor", buf);
+            });
         }
     }
 
@@ -189,7 +193,9 @@ mod tests {
 
             assert_eq!(res, case);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
+            insta_settings!({
+                insta::assert_binary_snapshot!(".cbor", buf);
+            });
         }
     }
 

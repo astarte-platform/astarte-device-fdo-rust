@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -135,6 +135,8 @@ impl<'de> Deserialize<'de> for MfgInfo<'_> {
 pub(crate) mod tests {
     use serde_bytes::ByteBuf;
 
+    use crate::tests::insta_settings;
+
     use super::*;
 
     pub(crate) fn custom_mfginfo() -> MfgInfo<'static> {
@@ -158,13 +160,17 @@ pub(crate) mod tests {
 
         assert_eq!(res, mfg_info);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 
     #[test]
     fn mfg_info_debug() {
         let mfg_info = custom_mfginfo();
 
-        insta::assert_debug_snapshot!(mfg_info);
+        insta_settings!({
+            insta::assert_debug_snapshot!(mfg_info);
+        });
     }
 }

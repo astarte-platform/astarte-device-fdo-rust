@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -180,6 +180,7 @@ impl InitialMessage for HelloDevice<'_> {}
 mod tests {
     use coset::iana::EnumI64;
 
+    use crate::tests::insta_settings;
     use crate::v101::sign_info::{DeviceSgType, SigInfo};
     use crate::v101::tests::create_guid;
     use crate::v101::Nonce;
@@ -206,6 +207,8 @@ mod tests {
 
         assert_eq!(res, hello);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }
