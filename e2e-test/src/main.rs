@@ -19,13 +19,14 @@
 use std::path::PathBuf;
 
 use astarte_device_fdo::astarte_fdo_protocol::utils::Hex;
-use astarte_device_fdo::client::Client;
+use astarte_device_fdo::client::http::InitialClient;
 use astarte_device_fdo::crypto::software::SoftwareCrypto;
 use astarte_device_fdo::crypto::Crypto;
 use astarte_device_fdo::di::Di;
+use astarte_device_fdo::srv_info::{AstarteMod, AstarteModBuilder, SkipServiceInfo};
 use astarte_device_fdo::storage::{FileStorage, Storage};
 use astarte_device_fdo::to1::To1;
-use astarte_device_fdo::to2::To2;
+use astarte_device_fdo::to2::{Hello, To2};
 use astarte_device_fdo::Ctx;
 use clap::{Parser, Subcommand};
 use eyre::{bail, eyre};
@@ -92,7 +93,10 @@ enum Protocol {
         #[arg(long)]
         export_guid: Option<PathBuf>,
     },
-    To {},
+    To {
+        #[arg(long)]
+        astarte_mod: bool,
+    },
 }
 
 impl Protocol {
@@ -117,7 +121,7 @@ impl Protocol {
                 model_no,
                 export_guid,
             } => {
-                let client = Client::create(manufacturing_url)?;
+                let client = InitialClient::create(manufacturing_url, ctx.tls().clone())?;
 
                 let di = Di::create(ctx, client, &model_no, &serial_no).await?;
 
@@ -136,14 +140,41 @@ impl Protocol {
                     info!(path = %path.display(), "guid exported");
                 }
             }
-            Protocol::To {} => {
+            Protocol::To { astarte_mod } => {
                 let Some(dc) = Di::read_existing(ctx).await? else {
                     bail!("device credentials missing, DI not yet completed");
                 };
 
+                if !dc.dc_active {
+                    info!("device change TO already run to completion");
+
+                    let dv = To2::<'_, AstarteModBuilder, Hello>::read_existing(ctx).await?;
+
+                    info!(?dv, "Astarte mod already stored");
+
+                    return Ok(());
+                }
+
+                // TODO: this should be the same from the mfg_info
+                let sn = uuid::Uuid::now_v7().to_string();
+
                 let rv = To1::new(&dc).rv_owner(ctx).await?;
 
-                To2::create(dc, rv)?.to2_change(ctx).await?;
+                if astarte_mod {
+                    let (to2, srv_mod) = To2::create(dc, rv, &sn, AstarteMod::builder())?
+                        .to2_change(ctx)
+                        .await?;
+
+                    info!(?srv_mod, "credentials received");
+
+                    to2.done(ctx).await?;
+                } else {
+                    let (to2, ()) = To2::create(dc, rv, &sn, SkipServiceInfo::default())?
+                        .to2_change(ctx)
+                        .await?;
+
+                    to2.done(ctx).await?;
+                }
             }
         }
 
@@ -170,11 +201,24 @@ async fn main() -> eyre::Result<()> {
         .install_default()
         .map_err(|_| eyre!("couldn't install crypto provider"))?;
 
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "platform-tls")] {
+            use rustls_platform_verifier::BuilderVerifierExt;
+            let tls = rustls::ClientConfig::builder().with_platform_verifier()?.with_no_client_auth();
+        } else if #[cfg(feature = "webpki-roots")] {
+            let tls = rustls::ClientConfig::builder().with_root_certificates(root_store).with_no_client_auth();
+        } else {
+            compile_error!("select one feature betwee 'platform-tls' and 'webpki-roots' for TLS")
+        }
+    };
+
+    let tls = tls;
+
     match cli.command {
         Command::PlainFs { storage, proto } => {
             let mut storage = FileStorage::open(storage).await?;
             let mut crypto = SoftwareCrypto::create(storage.clone()).await?;
-            let mut ctx = Ctx::new(&mut crypto, &mut storage);
+            let mut ctx = Ctx::new(&mut crypto, &mut storage, tls);
             proto.run(&mut ctx).await?;
         }
         #[cfg(feature = "tpm")]
@@ -193,7 +237,7 @@ async fn main() -> eyre::Result<()> {
                 Tpm::with_pcrs(&storage, &pcrs).await?
             };
 
-            let mut ctx = Ctx::new(&mut tpm, &mut storage);
+            let mut ctx = Ctx::new(&mut tpm, &mut storage, tls);
 
             proto.run(&mut ctx).await?;
         }
