@@ -34,10 +34,17 @@ annotate() {
         return
     fi
 
+    if [[ "$*" == *.snap || "$*" == *.snap.cbor ]]; then
+        echo "skipping licence files"
+        return
+    fi
+
     if [[ ! -e "$*" ]]; then
         echo "skipping not existing"
         return
     fi
+
+    # ignored files
 
     uv run reuse annotate \
         --copyright 'SECO Mind Srl' \

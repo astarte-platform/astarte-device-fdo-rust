@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -119,6 +119,7 @@ impl InitialMessage for HelloRv<'_> {}
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::insta_settings;
     use crate::v101::sign_info::{DeviceSgType, SigInfo};
     use crate::v101::tests::create_guid;
 
@@ -139,6 +140,8 @@ mod tests {
 
         assert_eq!(res, hello_rv);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }

@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -342,6 +342,7 @@ impl Serialize for PkBody<'_> {
 pub(crate) mod tests {
     use coset::CoseKeyBuilder;
 
+    use crate::tests::insta_settings;
     use crate::v101::x509::tests::CERT_ECC;
     use crate::v101::x509::X509;
 
@@ -417,7 +418,9 @@ pub(crate) mod tests {
 
             assert_eq!(res, pub_key);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
+            insta_settings!({
+                insta::assert_binary_snapshot!(".cbor", buf);
+            });
         }
     }
 
@@ -432,7 +435,9 @@ pub(crate) mod tests {
                 pk_body: case,
             };
 
-            insta::assert_debug_snapshot!(pub_key);
+            insta_settings!({
+                insta::assert_debug_snapshot!(pub_key);
+            });
         }
     }
 
@@ -488,7 +493,9 @@ pub(crate) mod tests {
 
             assert_eq!(res, case);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
+            insta_settings!({
+                insta::assert_binary_snapshot!(".cbor", buf);
+            });
         }
     }
 

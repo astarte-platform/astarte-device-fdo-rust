@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -197,6 +197,7 @@ impl Message for Done2 {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::insta_settings;
     use crate::v101::Nonce;
 
     use super::*;
@@ -214,7 +215,9 @@ mod tests {
 
         assert_eq!(res, done);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 
     #[test]
@@ -232,7 +235,9 @@ mod tests {
 
         assert_eq!(res, done);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
 
         assert_eq!(*res.nonce(), NonceTo2SetupDv(nonce));
     }

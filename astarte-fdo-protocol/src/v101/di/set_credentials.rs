@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,6 +94,7 @@ impl Message for SetCredentials<'_> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::insta_settings;
     use crate::v101::ownership_voucher::tests::create_ov_header;
 
     use super::*;
@@ -113,6 +114,8 @@ mod tests {
 
         assert_eq!(res, set_credentials);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }

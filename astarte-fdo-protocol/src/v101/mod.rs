@@ -1,6 +1,6 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -294,6 +294,8 @@ pub(crate) mod tests {
 
     use pretty_assertions::assert_eq;
 
+    use crate::tests::insta_settings;
+
     use super::*;
 
     pub(crate) fn from_hex(hex: &str) -> Vec<u8> {
@@ -329,7 +331,9 @@ pub(crate) mod tests {
 
         assert_eq!(res, guid);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 
     #[test]
@@ -355,8 +359,10 @@ pub(crate) mod tests {
     fn guid_display() {
         let guid = create_guid();
 
-        insta::assert_debug_snapshot!(guid);
-        insta::assert_snapshot!(guid);
+        insta_settings!({
+            insta::assert_debug_snapshot!(guid);
+            insta::assert_snapshot!(guid);
+        });
     }
 
     #[test]
@@ -392,7 +398,9 @@ pub(crate) mod tests {
 
             assert_eq!(res, ip);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
+            insta_settings!({
+                insta::assert_binary_snapshot!(".cbor", buf);
+            });
         }
     }
 
@@ -415,7 +423,9 @@ pub(crate) mod tests {
 
             assert_eq!(res, case);
 
-            insta::assert_binary_snapshot!(".cbor", buf);
+            insta_settings!({
+                insta::assert_binary_snapshot!(".cbor", buf);
+            });
         }
     }
 
@@ -437,6 +447,8 @@ pub(crate) mod tests {
 
         assert_eq!(res, nonce);
 
-        insta::assert_binary_snapshot!(".cbor", buf);
+        insta_settings!({
+            insta::assert_binary_snapshot!(".cbor", buf);
+        });
     }
 }
