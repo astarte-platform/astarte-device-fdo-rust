@@ -248,7 +248,7 @@ impl To2<Hello> {
     where
         C: Crypto,
     {
-        let mut client = Client::create(base_url.clone())?;
+        let mut client = Client::create(base_url.clone(), ctx.tls.clone())?;
 
         let hello = self.hello(ctx).await?;
 
