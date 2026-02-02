@@ -242,11 +242,12 @@ impl<A, E> Client<A, E> {
 
 impl Client<NeedsAuth, NeedsEncryption> {
     /// Create the HTTP client from a base_url
-    pub fn create(base_url: Url) -> Result<Self, Error> {
+    pub fn create(base_url: Url, tls: rustls::ClientConfig) -> Result<Self, Error> {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, MIME);
 
         let client = reqwest::ClientBuilder::new()
+            .use_preconfigured_tls(tls)
             .default_headers(headers)
             // TODO: consider 302 and 307 for redirect in TO1.HelloRV
             .redirect(reqwest::redirect::Policy::none())
