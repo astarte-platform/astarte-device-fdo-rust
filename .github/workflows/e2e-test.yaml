@@ -42,7 +42,7 @@ jobs:
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: cache container build
         id: cache-container
-        uses: actions/cache@v5.0.2
+        uses: actions/cache@v5.0.3
         with:
           path: .tmp/cache/containers
           key: ${{ runner.os }}-${{ hashFiles('justfile', 'scripts/**/*.sh', 'containers/**') }}
