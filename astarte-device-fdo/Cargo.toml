@@ -19,11 +19,15 @@
 [package]
 name = "astarte-device-fdo"
 version.workspace = true
+categories = ["embedded", "network-programming", "api-bindings"]
 edition.workspace = true
 homepage.workspace = true
+keywords = ["fido", "fdo", "astarte", "iot"]
 license.workspace = true
+readme = "README.md"
 repository.workspace = true
 rust-version.workspace = true
+description = "FIDO Device Onboarding client implementation to register with Astarte"
 
 [features]
 default = []

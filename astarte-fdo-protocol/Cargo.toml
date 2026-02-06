@@ -19,11 +19,15 @@
 [package]
 name = "astarte-fdo-protocol"
 version.workspace = true
+categories = ["embedded", "network-programming", "api-bindings", "parser-implementations"]
 edition.workspace = true
 homepage.workspace = true
+keywords = ["fido", "fdo", "astarte", "iot"]
 license.workspace = true
+readme = "README.md"
 repository.workspace = true
 rust-version.workspace = true
+description = "FIDO Device Onboarding message parsing library"
 
 [dependencies]
 ciborium.workspace = true
