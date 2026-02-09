@@ -25,16 +25,16 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0-alpha.1"
+version = "1.0.0"
 edition = "2024"
 homepage = "https://astarte.cloud/"
 license = "Apache-2.0"
 repository = "https://github.com/astarte-platform/astarte-device-fdo-rust"
-rust-version = "1.85"
+rust-version = "1.86"
 
 [workspace.dependencies]
-astarte-device-fdo = { version = "0.1.0-alpha.1", path = "./astarte-device-fdo" }
-astarte-fdo-protocol = { version = "0.1.0-alpha.1", path = "./astarte-fdo-protocol" }
+astarte-device-fdo = { version = "1.0.0", path = "./astarte-device-fdo" }
+astarte-fdo-protocol = { version = "1.0.0", path = "./astarte-fdo-protocol" }
 aws-lc-rs = "1.15.1"
 ciborium = "0.2.2"
 coset = "0.4.0"

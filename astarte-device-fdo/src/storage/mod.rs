@@ -73,7 +73,10 @@ impl FileStorage {
     /// Opens the directory to use as file storage
     pub async fn open(dir: PathBuf) -> io::Result<Self> {
         let mut builder = DirBuilder::new();
-        builder.recursive(true).mode(0o700);
+        builder.recursive(true);
+
+        #[cfg(unix)]
+        builder.mode(0o700);
 
         builder.create(&dir).await?;
 
@@ -93,10 +96,14 @@ impl Storage for FileStorage {
 
     #[instrument(skip(self, content))]
     async fn write(&self, file: &str, content: &[u8]) -> Result<(), Error> {
-        let mut file = File::options()
+        let mut options = File::options();
+
+        #[cfg(unix)]
+        options.mode(0o700);
+
+        let mut file = options
             .create_new(true)
             .write(true)
-            .mode(0o700)
             .open(self.dir.join(file))
             .await
             .map_err(|err| {
@@ -116,11 +123,15 @@ impl Storage for FileStorage {
 
     #[instrument(skip(self, content))]
     async fn overwrite(&self, file: &str, content: &[u8]) -> Result<(), Error> {
-        let mut file = File::options()
+        let mut options = File::options();
+
+        #[cfg(unix)]
+        options.mode(0o700);
+
+        let mut file = options
             .create(true)
             .write(true)
             .truncate(true)
-            .mode(0o700)
             .open(self.dir.join(file))
             .await
             .map_err(|err| {
