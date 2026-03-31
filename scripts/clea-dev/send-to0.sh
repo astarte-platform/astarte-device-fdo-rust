@@ -34,6 +34,26 @@ if [[ -z $GUID ]]; then
     exit 1
 fi
 
+# Upload key
+
+private_key=$(
+    openssl ec -in .tmp/fdo/certs/owner.key -inform der -out - -outform pem
+)
+
+json=$(
+    jq --null-input \
+        --arg key_data "$private_key" \
+        --arg key_name "$GUID" \
+        '{"data":{"action":"upload","key_name":$key_name,"key_data":$key_data,"key_algorithm":"ecdsa-p256"}}'
+)
+
+curl --fail \
+    --header "Authorization: Bearer $token" \
+    --request POST 'http://api.astarte.localhost/pairing/v1/test/fdo/owner_keys' \
+    --json "$json"
+
+# Upload voucher
+
 voucherdir="$FDODIR/ov/ownervoucher"
 
 mkdir -p "$voucherdir"
@@ -41,20 +61,15 @@ mkdir -p "$voucherdir"
 curl --fail -v "http://localhost:8038/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
 
 voucher=$(cat "$voucherdir/$GUID")
-private_key=$(
-    openssl ec -in .tmp/fdo/certs/owner.key -inform der -out - -outform pem
-)
 
 json=$(
     jq --null-input \
         --arg voucher "$voucher" \
-        --arg key "$private_key" \
-        '{"data":{"ownership_voucher":$voucher,"private_key":$key}}'
+        --arg key "$GUID" \
+        '{"data":{"ownership_voucher":$voucher,"key_name":$key,"key_algorithm":"ecdsa-p256"}}'
 )
-
-
 
 curl --fail \
     --header "Authorization: Bearer $CLEA_DEV_REALM_TOKEN" \
-    --request POST "$CLEA_DEV_API/pairing/v1/$CLEA_DEV_REALM/ownership" \
+    --request POST "$CLEA_DEV_API/pairing/v1/$CLEA_DEV_REALM/fdo/ownership_vouchers" \
     --json "$json"
