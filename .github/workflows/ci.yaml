@@ -45,8 +45,8 @@ jobs:
       pr: ${{ github.event.pull_request.number }}
   reuse:
     uses: ./.github/workflows/reuse-lint.yaml
-  copyright:
-    uses: ./.github/workflows/copyright.yaml
+  common:
+    uses: ./.github/workflows/common.yaml
     needs: [reuse, dco]
   warmup-caches:
     uses: ./.github/workflows/warmup-caches.yaml

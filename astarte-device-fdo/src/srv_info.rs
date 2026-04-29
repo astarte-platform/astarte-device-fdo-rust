@@ -76,7 +76,7 @@ impl<'a> ServiceInfoDecode<'a> for SkipServiceInfo {
 /// | ------------------ | ----------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 /// | astarte:active     | Required    | bool (True)                     | Indicates the module is active.                                                                                |
 /// | astarte:realm      | Required    | tstr                            | Owner's Astarte realm the device belongs too. (e.g. test)                                                      |
-/// | astarte:secret     | Required    | tstr                            | Credential secret to create a X509 Certificate to use for mTLS to comunicate with the MQTT broker.             |
+/// | astarte:secret     | Required    | tstr                            | Credential secret to create a X509 Certificate to use for mTLS to communicate with the MQTT broker.             |
 /// | astarte:baseurl    | Required    | tstr                            | Base URL for the where Astarte Pairing API can be found to. (e.g. `http://api.astarte.localhost`)              |
 /// | astarte:deviceid   | Required    | tstr                            | ID of the device in Astarte, this can be generated starting from the `devmod:sn` (e.g. 2TBn-jNESuuHamE2Zo1anA) |
 /// | astarte:nummodules | Required    | uint                            | See `devmod:nummodules`                                                                                        |
@@ -85,7 +85,7 @@ impl<'a> ServiceInfoDecode<'a> for SkipServiceInfo {
 pub struct AstarteMod<'a> {
     /// Owner's Astarte realm the device belongs too. (e.g. `test`)
     pub realm: Cow<'a, str>,
-    /// Credential secret to create a X509 Certificate to use for mTLS to comunicate with the MQTT broker.
+    /// Credential secret to create a X509 Certificate to use for mTLS to communicate with the MQTT broker.
     pub secret: Cow<'a, str>,
     /// Base URL for the where Astarte Pairing API can be found to. (e.g. `http://api.astarte.localhost`)
     pub base_url: Cow<'a, str>,
@@ -149,11 +149,11 @@ impl<'a> AstarteModBuilder<'a> {
         }
 
         if self.realm.is_none() {
-            error!("realm is unsetset");
+            error!("realm is unset");
         }
 
         if self.secret.is_none() {
-            error!("secret is unsetset");
+            error!("secret is unset");
         }
 
         if self.base_url.is_none() {

@@ -16,27 +16,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: copyright
-on:
-  workflow_call:
-  workflow_dispatch:
-permissions:
-  contents: read
-defaults:
-  run:
-    shell: bash
-jobs:
-  check-annotations:
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-24.04
-    env:
-      BASE_REF: ${{ github.event.pull_request.base.sha }}
-      HEAD_REF: ${{ github.event.pull_request.head.sha }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@v7.2.1
-      - run: |
-          ./scripts/ci/add-copyright-to-modified.sh "$BASE_REF" "$HEAD_REF"
-          git diff --exit-code --name-only
+[profile.ci]
+global-timeout = "10m"
+retries = 3
+fail-fast = false
+
+[profile.ci.junit]
+path = "junit.xml"
