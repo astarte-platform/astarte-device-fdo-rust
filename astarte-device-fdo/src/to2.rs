@@ -317,7 +317,7 @@ impl<'a, D> To2<'a, D, Prove> {
 
         info!("To2.ProveOvHdr ProveOvHdr verified");
 
-        // 2. Verify OVHeder against device credentials
+        // 2. Verify OVHeader against device credentials
         let mut buf = Vec::new();
         ciborium::into_writer(&payload.ov_header.ov_pub_key, &mut buf).map_err(|err| {
             error!(error = %err, "couldn't encode ov header public key");
@@ -788,7 +788,7 @@ impl<'a, D> To2<'a, D, DvDone> {
         // TODO: separate store credentials
         // TODO: update the hmac, rvinfo, guid, ovpubkey
         // TODO: add a message to permit multiple FDO
-        // TODO: connect to astarte before chainging this
+        // TODO: connect to astarte before changing this
         self.device_creds.dc_active = false;
 
         let mut buf = Vec::new();
