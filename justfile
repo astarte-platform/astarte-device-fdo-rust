@@ -210,7 +210,7 @@ vm-clean:
 
 # Setups astarte
 [group('astarte')]
-astarte-setup: astarte-clone astarte-genkeys go-server-setup astarte-build astarte-healty astarte-create-realm
+astarte-setup: astarte-clone astarte-genkeys go-server-setup astarte-build astarte-healthy astarte-create-realm
 
 # Builds and starts astarte
 [group('astarte')]
@@ -244,7 +244,11 @@ astarte-send-to0:
     ./scripts/astarte/send-to0.sh
 
 [group('astarte')]
-astarte-healty:
+astarte-send-to0-guid guid:
+    ./scripts/astarte/send-to0.sh '{{ guid }}'
+
+[group('astarte')]
+astarte-healthy:
     ./scripts/astarte/healthy.sh
 
 [group('astarte')]
@@ -262,7 +266,7 @@ export CLEA_DEV_API := x"https://api.astarte.${CLEA_DEV_BASE:-}"
 
 # Setups clea-dev
 [group('clea-dev')]
-clea-dev-setup: go-server-setup clea-dev-healty
+clea-dev-setup: go-server-setup clea-dev-healthy
 
 # Run FDO against clea-dev
 [group('clea-dev')]
@@ -277,7 +281,7 @@ clea-dev-send-to0:
     ./scripts/clea-dev/send-to0.sh
 
 [group('clea-dev')]
-clea-dev-healty:
+clea-dev-healthy:
     ./scripts/clea-dev/healthy.sh
 
 ####
@@ -288,11 +292,11 @@ clea-dev-healty:
 export BOARD_RV_DOMAIN := x"fdo-rendezvous.${BOARD_BASE_URL:-}"
 export BOARD_RV := x"https://fdo-rendezvous.${BOARD_BASE_URL:-}"
 export BOARD_API := x"https://${BOARD_API_PART:-api.astarte}.${BOARD_BASE_URL:-}"
-export BOARD_MAN := x"http://fdo-manufactoring.astarte.host:8038"
+export BOARD_MAN := x"http://fdo-manufacturing.astarte.host:8038"
 
 # Setups board
 [group('board')]
-board-setup: go-server-setup go-server-start board-healty board-rv-info
+board-setup: go-server-setup go-server-start board-healthy board-rv-info
 
 [group('board')]
 board-rv-info:
@@ -311,7 +315,7 @@ board-view-ov guid:
     ./scripts/board/view-ov.sh '{{ guid }}'
 
 [group('board')]
-board-healty:
+board-healthy:
     ./scripts/board/healthy.sh
 
 [group('board')]

@@ -59,7 +59,7 @@ pub struct DeviceServiceInfo<'a> {
 }
 
 impl DeviceServiceInfo<'_> {
-    // TODO: this is not neither by us nor Astarte, but we still send it to be spec complient
+    // TODO: this is not neither by us nor Astarte, but we still send it to be spec compliant
     //       We should change this to measure the correct values to send.
     /// Example bogus info
     pub fn example(sn: &str) -> Self {

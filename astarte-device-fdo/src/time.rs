@@ -24,7 +24,7 @@ pub(crate) const DEFAULT_DELAY: Duration = Duration::from_secs(120);
 
 /// Creates a delay by adding a random 25% more or less to it.
 pub(crate) fn add_random_jitter(mut delay: Duration) -> Duration {
-    // Delay of 2 minutes if any operation failes
+    // Delay of 2 minutes if any operation fails
     const DEFAULT_RANGE: i64 = DEFAULT_DELAY.as_millis().div_euclid(100).saturating_mul(25) as i64;
 
     // Use millis to produce a non empty range when approximating (secs/100)

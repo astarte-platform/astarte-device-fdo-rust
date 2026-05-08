@@ -23,28 +23,31 @@
 #
 # For example
 #
-#   git status --short | cut -f 2 -d ' ' | ./scripts/copyright.sh
+#   git status --short | cut -f 2 -d ' ' | ./scripts/ci/copyright.sh
 #
 
 set -exEuo pipefail
 
 annotate() {
+    # ignored files
     if [[ "$*" == LICENSES/* ]]; then
         echo "skipping licence files"
         return
     fi
-
     if [[ "$*" == *.snap || "$*" == *.snap.cbor ]]; then
-        echo "skipping licence files"
+        echo "skipping test snapshot files"
+        return
+    fi
+    if [[ "$*" == migrations/**.sql || "$*" == queries/**.sql ]]; then
+        echo "skipping sql files"
         return
     fi
 
+    # Diff could include deleted files
     if [[ ! -e "$*" ]]; then
         echo "skipping not existing"
         return
     fi
-
-    # ignored files
 
     uv run reuse annotate \
         --copyright 'SECO Mind Srl' \
@@ -66,6 +69,7 @@ fi
 while read -r line; do
     if [[ $line == '' ]]; then
         echo "Empty line, skipping" 1>&2
+
         continue
     fi
 

@@ -120,7 +120,7 @@ pub type OneOrMore<T> = Repetition<1, T>;
 /// Repeated = [ 2* bstr ]
 /// ```
 ///
-/// This requires at leat one element, use a [Vec] if you want 0 ore more.
+/// This requires at least one element, use a [Vec] if you want 0 ore more.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Repetition<const MIN: usize, T>(Vec<T>);
 
