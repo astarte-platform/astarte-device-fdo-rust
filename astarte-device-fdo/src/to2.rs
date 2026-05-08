@@ -190,7 +190,7 @@ impl<'a, D> To2<'a, D, Hello> {
     where
         C: Crypto,
         S: Storage,
-        D: ServiceInfoDecode<'static>,
+        D: ServiceInfoDecode,
     {
         info!("To2 started");
 
@@ -207,7 +207,7 @@ impl<'a, D> To2<'a, D, Hello> {
     pub async fn read_existing<C, S>(ctx: &mut Ctx<'_, C, S>) -> Result<Option<D::Output>, Error>
     where
         S: Storage,
-        D: ServiceInfoDecode<'static>,
+        D: ServiceInfoDecode,
     {
         let Some(buf) = ctx.storage.read(ASTARTE_MOD_PATH).await? else {
             return Ok(None);
@@ -705,7 +705,7 @@ impl<'a, D> To2<'a, D, DvReady> {
     ) -> Result<(To2<'a, D, DvDone>, D::Output), Error>
     where
         C: Crypto,
-        D: ServiceInfoDecode<'static>,
+        D: ServiceInfoDecode,
     {
         let own_srv_info_ready = self
             .state
