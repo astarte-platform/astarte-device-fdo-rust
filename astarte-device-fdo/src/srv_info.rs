@@ -18,8 +18,6 @@
 
 //! Modules to read Service Info
 
-use std::borrow::Cow;
-
 use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::service_info::ServiceInfoKv;
@@ -29,7 +27,7 @@ use tracing::{error, trace, warn};
 use url::Url;
 
 /// Decodes the service info into a value used by the Device.
-pub trait ServiceInfoDecode<'a> {
+pub trait ServiceInfoDecode {
     /// The decoder that will consume and parse the service info.
     type Output: Serialize + DeserializeOwned + Sized;
 
@@ -37,7 +35,7 @@ pub trait ServiceInfoDecode<'a> {
     fn reset(&mut self) -> Result<(), Error>;
 
     /// Decodes a single [`ServiceInfoKv`].
-    fn decode(&mut self, service_info: &ServiceInfoKv<'a>) -> Result<(), Error>;
+    fn decode(&mut self, service_info: &ServiceInfoKv<'_>) -> Result<(), Error>;
 
     /// Consume self and validates and returns the value.
     fn finalize(&mut self) -> Result<Self::Output, Error>;
@@ -49,10 +47,10 @@ pub trait ServiceInfoDecode<'a> {
 #[derive(Debug, Default)]
 pub struct SkipServiceInfo {}
 
-impl<'a> ServiceInfoDecode<'a> for SkipServiceInfo {
+impl ServiceInfoDecode for SkipServiceInfo {
     type Output = ();
 
-    fn decode(&mut self, service_info: &ServiceInfoKv<'a>) -> Result<(), Error> {
+    fn decode(&mut self, service_info: &ServiceInfoKv<'_>) -> Result<(), Error> {
         trace!(key = %service_info.key());
 
         Ok(())
@@ -82,25 +80,25 @@ impl<'a> ServiceInfoDecode<'a> for SkipServiceInfo {
 /// | astarte:nummodules | Required    | uint                            | See `devmod:nummodules`                                                                                        |
 /// | astarte:modules    | Required    | [uint, uint, tstr1, tstr2, ...] | See `devmod:modules`                                                                                           |
 #[derive(Debug, Clone, PartialEq)]
-pub struct AstarteMod<'a> {
+pub struct AstarteMod {
     /// Owner's Astarte realm the device belongs too. (e.g. `test`)
-    pub realm: Cow<'a, str>,
+    pub realm: String,
     /// Credential secret to create a X509 Certificate to use for mTLS to communicate with the MQTT broker.
-    pub secret: Cow<'a, str>,
+    pub secret: String,
     /// Base URL for the where Astarte Pairing API can be found to. (e.g. `http://api.astarte.localhost`)
-    pub base_url: Cow<'a, str>,
+    pub base_url: String,
     /// ID of the device in Astarte, this can be generated starting from the `devmod:sn` (e.g. 2TBn-jNESuuHamE2Zo1anA)
-    pub device_id: Cow<'a, str>,
+    pub device_id: String,
 }
 
-impl<'a> AstarteMod<'a> {
+impl AstarteMod {
     /// Returns the Astarte mod builder
-    pub fn builder() -> AstarteModBuilder<'a> {
+    pub fn builder() -> AstarteModBuilder {
         AstarteModBuilder::default()
     }
 }
 
-impl Serialize for AstarteMod<'_> {
+impl Serialize for AstarteMod {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -116,7 +114,7 @@ impl Serialize for AstarteMod<'_> {
     }
 }
 
-impl<'de> Deserialize<'de> for AstarteMod<'_> {
+impl<'de> Deserialize<'de> for AstarteMod {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -134,16 +132,16 @@ impl<'de> Deserialize<'de> for AstarteMod<'_> {
 
 /// Builder for the [`AstarteMod`]
 #[derive(Default)]
-pub struct AstarteModBuilder<'a> {
+pub struct AstarteModBuilder {
     active: Option<bool>,
-    realm: Option<Cow<'a, str>>,
-    secret: Option<Cow<'a, str>>,
-    base_url: Option<Cow<'a, str>>,
-    device_id: Option<Cow<'a, str>>,
+    realm: Option<String>,
+    secret: Option<String>,
+    base_url: Option<String>,
+    device_id: Option<String>,
 }
 
-impl<'a> AstarteModBuilder<'a> {
-    pub(crate) fn build(self) -> Result<AstarteMod<'a>, Error> {
+impl AstarteModBuilder {
+    pub(crate) fn build(self) -> Result<AstarteMod, Error> {
         if self.active != Some(true) {
             error!("active flag is unset");
         }
@@ -170,7 +168,7 @@ impl<'a> AstarteModBuilder<'a> {
         ))
     }
 
-    fn build_astarte(self) -> Option<AstarteMod<'a>> {
+    fn build_astarte(self) -> Option<AstarteMod> {
         if self.active != Some(true) {
             return None;
         }
@@ -183,7 +181,7 @@ impl<'a> AstarteModBuilder<'a> {
         })
     }
 
-    fn active(&mut self, info: &ServiceInfoKv<'a>) -> Result<(), Error> {
+    fn active(&mut self, info: &ServiceInfoKv<'_>) -> Result<(), Error> {
         debug_assert_eq!(info.key(), "astarte:active");
 
         let active = info.value::<bool>()?;
@@ -198,10 +196,10 @@ impl<'a> AstarteModBuilder<'a> {
         Ok(())
     }
 
-    fn realm(&mut self, info: &ServiceInfoKv<'a>) -> Result<(), Error> {
+    fn realm(&mut self, info: &ServiceInfoKv<'_>) -> Result<(), Error> {
         debug_assert_eq!(info.key(), "astarte:realm");
 
-        let realm = info.value::<Cow<'a, str>>()?;
+        let realm = info.value()?;
 
         if let Some(old) = self.realm.replace(realm) {
             error!(%old, "multiple astarte realms");
@@ -215,10 +213,10 @@ impl<'a> AstarteModBuilder<'a> {
         Ok(())
     }
 
-    fn secret(&mut self, info: &ServiceInfoKv<'a>) -> Result<(), Error> {
+    fn secret(&mut self, info: &ServiceInfoKv<'_>) -> Result<(), Error> {
         debug_assert_eq!(info.key(), "astarte:secret");
 
-        let secret = info.value::<Cow<'a, str>>()?;
+        let secret = info.value()?;
 
         if let Some(old) = self.secret.replace(secret) {
             error!(%old, "multiple astarte secrets");
@@ -232,10 +230,10 @@ impl<'a> AstarteModBuilder<'a> {
         Ok(())
     }
 
-    fn base_url(&mut self, info: &ServiceInfoKv<'a>) -> Result<(), Error> {
+    fn base_url(&mut self, info: &ServiceInfoKv<'_>) -> Result<(), Error> {
         debug_assert_eq!(info.key(), "astarte:baseurl");
 
-        let base_url = info.value::<Cow<'a, str>>()?;
+        let base_url: String = info.value()?;
 
         debug_assert!(Url::parse(&base_url).is_ok());
 
@@ -251,10 +249,10 @@ impl<'a> AstarteModBuilder<'a> {
         Ok(())
     }
 
-    fn device_id(&mut self, info: &ServiceInfoKv<'a>) -> Result<(), Error> {
+    fn device_id(&mut self, info: &ServiceInfoKv<'_>) -> Result<(), Error> {
         debug_assert_eq!(info.key(), "astarte:deviceid");
 
-        let device_id = info.value::<Cow<'a, str>>()?;
+        let device_id = info.value()?;
 
         if let Some(old) = self.device_id.replace(device_id) {
             error!(%old, "multiple astarte device id");
@@ -269,10 +267,10 @@ impl<'a> AstarteModBuilder<'a> {
     }
 }
 
-impl<'a> ServiceInfoDecode<'a> for AstarteModBuilder<'a> {
-    type Output = AstarteMod<'a>;
+impl ServiceInfoDecode for AstarteModBuilder {
+    type Output = AstarteMod;
 
-    fn decode(&mut self, service_info: &ServiceInfoKv<'a>) -> Result<(), Error> {
+    fn decode(&mut self, service_info: &ServiceInfoKv) -> Result<(), Error> {
         let is_astarte = service_info.key().starts_with("astarte:");
 
         if !is_astarte {
