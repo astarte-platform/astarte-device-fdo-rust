@@ -54,7 +54,7 @@ enum Command {
         #[command(subcommand)]
         proto: Protocol,
     },
-    #[cfg(feature = "tpm")]
+    #[cfg(all(feature = "tpm", target_os = "linux"))]
     UseTpm {
         // TODO: remove
         #[arg(long, default_value = ".tmp/fdo-astarte")]
@@ -221,7 +221,7 @@ async fn main() -> eyre::Result<()> {
             let mut ctx = Ctx::new(&mut crypto, &mut storage, tls);
             proto.run(&mut ctx).await?;
         }
-        #[cfg(feature = "tpm")]
+        #[cfg(all(feature = "tpm", target_os = "linux"))]
         Command::UseTpm {
             storage,
             tpm_connection,
