@@ -65,12 +65,12 @@ impl HttpRetry {
         &mut self,
         result: &Result<reqwest::Response, Error>,
     ) -> Option<HttpRetryFuture> {
-        if let Ok(resp) = result.as_ref() {
-            if !Self::should_retry_code(resp) {
-                self.count = 0;
+        if let Ok(resp) = result.as_ref()
+            && !Self::should_retry_code(resp)
+        {
+            self.count = 0;
 
-                return None;
-            }
+            return None;
         }
 
         if self.count >= self.retries {

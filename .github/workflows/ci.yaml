@@ -26,6 +26,7 @@ on:
       - release-*
 permissions:
   contents: read
+  id-token: write
 env:
   CI: "true"
 # Spend CI time only on latest ref
@@ -57,6 +58,9 @@ jobs:
   test:
     uses: ./.github/workflows/test.yaml
     secrets: inherit
+    needs: [warmup-caches]
+  library:
+    uses: ./.github/workflows/library.yaml
     needs: [warmup-caches]
   e2e-test:
     uses: ./.github/workflows/e2e-test.yaml
