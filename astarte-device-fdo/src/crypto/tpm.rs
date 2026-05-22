@@ -169,7 +169,7 @@ impl TpmEcc {
         ciborium::into_writer(&encoded, &mut buf).map_err(|error| {
             error!(%error, "couldn't encode TPM signing key");
 
-            Error::new(ErrorKind::Encode, "TPM signign key")
+            Error::new(ErrorKind::Encode, "TPM signing key")
         })?;
 
         storage.write_immutable(Self::FILE, &buf).await?;
@@ -628,7 +628,7 @@ impl Crypto for Tpm {
         let hmac = TpmHmac::decode(secret).await?;
 
         let buffer = MaxBuffer::try_from(data).map_err(|error| {
-            error!(%error, "couldn't create buffer for hmac signign");
+            error!(%error, "couldn't create buffer for hmac signing");
 
             Error::new(ErrorKind::Crypto, "to create buffer for hmac signing")
         })?;

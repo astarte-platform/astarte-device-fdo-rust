@@ -52,7 +52,7 @@ json=$(
         '{"data":{"ownership_voucher":$voucher,"private_key":$key}}'
 )
 
-token=$(astartectl utils gen-jwt all-realm-apis -k "$REPOS/astarte/test_private.pem")
+token=$(astartectl utils gen-jwt all-realm-apis)
 
 curl --fail \
     --header "Authorization: Bearer $token" \

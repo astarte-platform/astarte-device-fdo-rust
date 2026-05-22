@@ -54,7 +54,7 @@ enum Command {
         #[command(subcommand)]
         proto: Protocol,
     },
-    #[cfg(feature = "tpm")]
+    #[cfg(all(feature = "tpm", target_os = "linux"))]
     UseTpm {
         // TODO: remove
         #[arg(long, default_value = ".tmp/fdo-astarte")]
@@ -208,7 +208,7 @@ async fn main() -> eyre::Result<()> {
         } else if #[cfg(feature = "webpki-roots")] {
             let tls = rustls::ClientConfig::builder().with_root_certificates(root_store).with_no_client_auth();
         } else {
-            compile_error!("select one feature betwee 'platform-tls' and 'webpki-roots' for TLS")
+            compile_error!("select one feature between 'platform-tls' and 'webpki-roots' for TLS")
         }
     };
 
@@ -221,7 +221,7 @@ async fn main() -> eyre::Result<()> {
             let mut ctx = Ctx::new(&mut crypto, &mut storage, tls);
             proto.run(&mut ctx).await?;
         }
-        #[cfg(feature = "tpm")]
+        #[cfg(all(feature = "tpm", target_os = "linux"))]
         Command::UseTpm {
             storage,
             tpm_connection,

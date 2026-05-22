@@ -19,11 +19,15 @@
 [package]
 name = "astarte-device-fdo"
 version.workspace = true
+categories = ["embedded", "network-programming", "api-bindings"]
 edition.workspace = true
 homepage.workspace = true
+keywords = ["fido", "fdo", "astarte", "iot"]
 license.workspace = true
+readme = "README.md"
 repository.workspace = true
 rust-version.workspace = true
+description = "FIDO Device Onboarding client implementation to register with Astarte"
 
 [features]
 default = []
@@ -42,12 +46,26 @@ coset.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
 http.workspace = true
-nix = { workspace = true, features = ["ioctl"] }
-p256 = { workspace = true, optional = true, default-features = false, features = ["ecdsa-core", "alloc"] }
+p256 = { workspace = true, optional = true, default-features = false, features = [
+  "ecdsa-core",
+  "alloc"
+] }
 pin-project-lite.workspace = true
-rand = { workspace = true, default-features = false, features = ["os_rng", "thread_rng"] }
-rcgen = { workspace = true, default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
-reqwest = { workspace = true, default-features = false, features = ["charset", "http2", "system-proxy", "rustls-no-provider"] }
+rand = { workspace = true, default-features = false, features = [
+  "sys_rng",
+  "thread_rng"
+] }
+rcgen = { workspace = true, default-features = false, features = [
+  "crypto",
+  "pem",
+  "aws_lc_rs"
+] }
+reqwest = { workspace = true, default-features = false, features = [
+  "charset",
+  "http2",
+  "system-proxy",
+  "rustls-no-provider"
+] }
 rustls.workspace = true
 serde.workspace = true
 serde_bytes.workspace = true

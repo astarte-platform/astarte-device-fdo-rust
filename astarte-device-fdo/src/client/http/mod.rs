@@ -84,7 +84,7 @@ impl InitialClient {
     {
         let req = self.inner.create_req(msg)?;
         let resp = self.inner.send_with_retry(req).await?;
-        let resp = HttpClient::handle_repsonse(resp).await?;
+        let resp = HttpClient::handle_response(resp).await?;
 
         let msg = HttpClient::parse_msg::<M::Response<'static>>(resp.msg_type, resp.inner).await?;
 
@@ -100,7 +100,7 @@ impl InitialClient {
     {
         let req = self.inner.create_req(msg)?;
         let resp = self.inner.send_single(req).await?;
-        let resp = HttpClient::handle_repsonse(resp).await?;
+        let resp = HttpClient::handle_response(resp).await?;
 
         let msg = HttpClient::parse_msg::<M::Response<'static>>(resp.msg_type, resp.inner).await?;
 
@@ -149,7 +149,7 @@ impl AuthClient {
             .insert(AUTHORIZATION, self.authorization.clone());
 
         let resp = self.inner.send_with_retry(req).await?;
-        let resp = HttpClient::handle_repsonse(resp).await?;
+        let resp = HttpClient::handle_response(resp).await?;
 
         if resp.authorization != self.authorization {
             return Err(Error::new(ErrorKind::Invalid, "HTTP authorization header"));
@@ -239,7 +239,7 @@ impl HttpClient {
         })
     }
 
-    async fn handle_repsonse(mut resp: reqwest::Response) -> Result<HttpResponse, Error> {
+    async fn handle_response(mut resp: reqwest::Response) -> Result<HttpResponse, Error> {
         trace!("HTTP response status {}", resp.status());
 
         let headers = resp.headers();
@@ -271,7 +271,7 @@ impl HttpClient {
                 Err(Self::parse_error_msg(resp).await)
             }
             status => {
-                error!(%status, "responce has invalid status code");
+                error!(%status, "response has invalid status code");
 
                 Err(Error::new(
                     ErrorKind::Io,
@@ -326,9 +326,9 @@ impl HttpClient {
             }
         };
 
-        error!(%error, "response containing error messagge received");
+        error!(%error, "response containing error message received");
 
-        Error::new(ErrorKind::Message, "error messasge received")
+        Error::new(ErrorKind::Message, "error message received")
     }
 
     async fn parse_msg<T>(msg_type: Msgtype, resp: reqwest::Response) -> Result<T, Error>

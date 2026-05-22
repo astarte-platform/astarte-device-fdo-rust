@@ -110,13 +110,13 @@ impl<'de> Deserialize<'de> for PublicKey<'_> {
             where
                 A: serde::de::SeqAccess<'de>,
             {
-                if let Some(len) = seq.size_hint() {
-                    if len != 3 {
-                        return Err(serde::de::Error::invalid_length(
-                            len,
-                            &"should be a sequence of 3 elements",
-                        ));
-                    }
+                if let Some(len) = seq.size_hint()
+                    && len != 3
+                {
+                    return Err(serde::de::Error::invalid_length(
+                        len,
+                        &"should be a sequence of 3 elements",
+                    ));
                 }
 
                 let pk_type = seq.next_element::<PkType>()?.ok_or_else(|| {

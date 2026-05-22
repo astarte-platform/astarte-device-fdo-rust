@@ -31,7 +31,6 @@ env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
   RUSTFLAGS: -D warnings
-  RUSTDOCFLAGS: -D warnings
 jobs:
   e2e-test:
     runs-on: ubuntu-24.04

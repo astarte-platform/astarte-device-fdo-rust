@@ -26,6 +26,7 @@ on:
       - release-*
 permissions:
   contents: read
+  id-token: write
 env:
   CI: "true"
 # Spend CI time only on latest ref
@@ -45,8 +46,8 @@ jobs:
       pr: ${{ github.event.pull_request.number }}
   reuse:
     uses: ./.github/workflows/reuse-lint.yaml
-  copyright:
-    uses: ./.github/workflows/copyright.yaml
+  common:
+    uses: ./.github/workflows/common.yaml
     needs: [reuse, dco]
   warmup-caches:
     uses: ./.github/workflows/warmup-caches.yaml
@@ -58,7 +59,13 @@ jobs:
     uses: ./.github/workflows/test.yaml
     secrets: inherit
     needs: [warmup-caches]
+  library:
+    uses: ./.github/workflows/library.yaml
+    needs: [warmup-caches]
   e2e-test:
     uses: ./.github/workflows/e2e-test.yaml
     # doesn't need to wait for the cache since creating the astarte cluster takes longer
+    needs: [reuse, dco]
+  multi-platform:
+    uses: ./.github/workflows/multi-platform.yaml
     needs: [reuse, dco]

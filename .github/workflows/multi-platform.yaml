@@ -16,7 +16,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: warmup-caches
+# Tests that don't run on linux
+name: multi-platform
 on:
   workflow_call:
   workflow_dispatch:
@@ -30,16 +31,26 @@ env:
   CARGO_TERM_COLOR: always
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
+  NEXTEST_PROFILE: "ci"
 jobs:
-  build:
-    runs-on: ubuntu-24.04
-    name: build
+  test:
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} / test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
+        with:
+          for-image: "${{ matrix.os }}"
       - uses: actions-rust-lang/setup-rust-toolchain@v1.16.0
       - uses: mozilla-actions/sccache-action@v0.0.10
-      - name: Build with all features
-        run: cargo build --locked --all-targets --all-features --workspace
+      - uses: taiki-e/install-action@v2.77.1
+        with:
+          tool: cargo-nextest
+      - name: cargo nextest run
+        run: cargo nextest run --locked --all-features --workspace
