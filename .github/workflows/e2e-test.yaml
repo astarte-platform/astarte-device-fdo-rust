@@ -35,7 +35,7 @@ jobs:
   e2e-test:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6.0.3
       - uses: ./.github/actions/install-deps
       - uses: actions-rust-lang/setup-rust-toolchain@v1.16.1
       - uses: mozilla-actions/sccache-action@v0.0.10
@@ -45,7 +45,7 @@ jobs:
         with:
           path: .tmp/cache/containers
           key: ${{ runner.os }}-${{ hashFiles('justfile', 'scripts/**/*.sh', 'containers/**') }}
-      - uses: taiki-e/install-action@v2.80.0
+      - uses: taiki-e/install-action@v2.81.9
         with:
           tool: just
       - run: |
