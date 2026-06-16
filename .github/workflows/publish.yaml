@@ -51,7 +51,7 @@ jobs:
       id-token: write
     steps:
       - &checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6.0.3
         with:
           fetch-depth: 0
           submodules: true
@@ -59,10 +59,10 @@ jobs:
       - &install-rust
         uses: actions-rust-lang/setup-rust-toolchain@v1.16.1
       - &login-crates
-        uses: rust-lang/crates-io-auth-action@v1
+        uses: rust-lang/crates-io-auth-action@v1.0.4
         id: auth
       - name: Run release-plz
-        uses: release-plz/action@v0.5.129
+        uses: release-plz/action@v0.5.130
         with:
           command: release
         env:
@@ -86,7 +86,7 @@ jobs:
       - *install-rust
       - *login-crates
       - name: Run release-plz
-        uses: release-plz/action@v0.5.129
+        uses: release-plz/action@v0.5.130
         with:
           command: release-pr
         env:
