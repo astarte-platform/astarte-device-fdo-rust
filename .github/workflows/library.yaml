@@ -38,7 +38,7 @@ jobs:
   minimal-versions:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.0
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
@@ -62,7 +62,7 @@ jobs:
         msrv: [1.88]
     name: msrv / ${{ matrix.msrv }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.0
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
@@ -80,7 +80,7 @@ jobs:
     if: startsWith(github.base_ref, 'release-') || startsWith(github.ref, 'release-')
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.0
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
