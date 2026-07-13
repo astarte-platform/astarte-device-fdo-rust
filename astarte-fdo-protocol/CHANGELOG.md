@@ -25,6 +25,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3](https://github.com/astarte-platform/astarte-device-fdo-rust/compare/astarte-fdo-protocol-v1.0.2...astarte-fdo-protocol-v1.0.3) - 2026-07-13
+
+### Fixed
+
+- _(to2)_ be more strict in the service info
+
+
 
 <!--
 This file is part of Astarte.
