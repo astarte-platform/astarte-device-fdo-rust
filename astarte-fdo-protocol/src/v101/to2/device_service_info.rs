@@ -58,7 +58,15 @@ pub struct DeviceServiceInfo<'a> {
     pub(crate) service_info: ServiceInfo<'a>,
 }
 
-impl DeviceServiceInfo<'_> {
+impl<'a> DeviceServiceInfo<'a> {
+    /// Create an new DeviceServiceInfo
+    pub fn new(is_more: bool, service_info: ServiceInfo<'a>) -> Self {
+        Self {
+            is_more_service_info: is_more,
+            service_info,
+        }
+    }
+
     // TODO: this is not neither by us nor Astarte, but we still send it to be spec compliant
     //       We should change this to measure the correct values to send.
     /// Example bogus info
