@@ -1,0 +1,91 @@
+# This file is part of Astarte.
+#
+# Copyright 2026 SECO Mind Srl
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openbao
+  namespace: astarte
+  labels:
+    app: openbao
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openbao
+  template:
+    metadata:
+      labels:
+        app: openbao
+    spec:
+      containers:
+        - name: rendezvous
+          image: "docker.io/openbao/openbao:2.5.5"
+          command:
+            - docker-entrypoint.sh
+            - server
+            - -dev
+          env:
+            - name: BAO_DEV_ROOT_TOKEN_ID
+              value: astarte_token
+            - name: BAO_DEV_LISTEN_ADDRESS
+              value: 0.0.0.0:8200
+          ports:
+            - containerPort: 8200
+              name: http
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - bao
+                - status
+                - -address=http://127.0.0.1:8200
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - bao
+                - status
+                - -address=http://127.0.0.1:8200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openbao
+  namespace: astarte
+  labels:
+    app: openbao
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8200
+      targetPort: 8200
+      protocol: TCP
+      name: http
+  selector:
+    app: openbao

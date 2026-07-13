@@ -71,8 +71,31 @@ jobs:
                   connection:
                     host: http://fdo-rendezvous.astarte.svc.cluster.local
                     port: 8041
+            - op: add
+              path: /spec/components
+              value:
+                housekeeping:
+                  image: docker.io/astarte/astarte_housekeeping:1.4-snapshot
+                realmManagement:
+                  image: docker.io/astarte/astarte_realm_management:1.4-snapshot
+                pairing:
+                  image: docker.io/astarte/astarte_pairing:1.4-snapshot
+                  additionalEnv:
+                    - name: ASTARTE_VAULT_URL
+                      value: http://openbao.astarte.svc.cluster.local:8200
+                    - name: ASTARTE_VAULT_AUTHENTICATION_MECHANISM
+                      value: "token"
+                    - name: ASTARTE_VAULT_TOKEN
+                      value: "astarte_token"
+                dataUpdaterPlant:
+                  image: docker.io/astarte/astarte_data_updater_plant:1.4-snapshot
+                appengineApi:
+                  image: docker.io/astarte/astarte_appengine_api:1.4-snapshot
+                triggerEngine:
+                  image: docker.io/astarte/astarte_trigger_engine:1.4-snapshot
       - run: |
           kubectl apply -f scripts/e2e-test/rendezvous.yaml
+          kubectl apply -f scripts/e2e-test/openbao.yaml
       - run: |
           echo '127.0.0.1 test.api.autotest.astarte-platform.org' | sudo tee -a /etc/hosts
       - run: ./scripts/e2e-test/run.sh
