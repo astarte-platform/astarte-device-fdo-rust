@@ -37,7 +37,7 @@ jobs:
   fmt:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
       - uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
@@ -45,7 +45,7 @@ jobs:
   clippy:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
@@ -56,7 +56,7 @@ jobs:
   doc:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
@@ -70,13 +70,13 @@ jobs:
   features:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
       - uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
       - uses: mozilla-actions/sccache-action@v0.0.10
-      - uses: taiki-e/install-action@v2.83.2
+      - uses: taiki-e/install-action@v2.83.4
         with:
           tool: cargo-hack
       - name: cargo hack test
@@ -88,7 +88,7 @@ jobs:
     name: stable / for-publish
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
