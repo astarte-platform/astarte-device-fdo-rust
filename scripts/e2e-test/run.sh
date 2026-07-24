@@ -144,4 +144,4 @@ json=$(
 ###
 # TO1 and TO2 part of the protocol
 #
-cargo e2e-test plain-fs to
+cargo e2e-test plain-fs to --astarte-mod
