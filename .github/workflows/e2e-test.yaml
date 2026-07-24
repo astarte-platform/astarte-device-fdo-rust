@@ -60,7 +60,8 @@ jobs:
       - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: astarte-platform/astarte-cluster-action@fd17bc7e37c50c84650dbcae112c02089fd20efd
         with:
-          astarte_version: 1.3.0
+          astarte_version: 1.4.0-rc.2
+          astarte_chart_version: 26.7.0-rc.1
           # Enable the fdo feature using kustomize
           kustomize_astarte_patch: |
             - op: add
@@ -72,27 +73,14 @@ jobs:
                     host: http://fdo-rendezvous.astarte.svc.cluster.local
                     port: 8041
             - op: add
-              path: /spec/components
+              path: /spec/vault
               value:
-                housekeeping:
-                  image: docker.io/astarte/astarte_housekeeping:1.4-snapshot
-                realmManagement:
-                  image: docker.io/astarte/astarte_realm_management:1.4-snapshot
-                pairing:
-                  image: docker.io/astarte/astarte_pairing:1.4-snapshot
-                  additionalEnv:
-                    - name: ASTARTE_VAULT_URL
-                      value: http://openbao.astarte.svc.cluster.local:8200
-                    - name: ASTARTE_VAULT_AUTHENTICATION_MECHANISM
-                      value: "token"
-                    - name: ASTARTE_VAULT_TOKEN
-                      value: "astarte_token"
-                dataUpdaterPlant:
-                  image: docker.io/astarte/astarte_data_updater_plant:1.4-snapshot
-                appengineApi:
-                  image: docker.io/astarte/astarte_appengine_api:1.4-snapshot
-                triggerEngine:
-                  image: docker.io/astarte/astarte_trigger_engine:1.4-snapshot
+                connection:
+                  host: openbao.astarte.svc.cluster.local
+                  port: 8200
+                  connectionStringSecret:
+                    name: astarte-vault-secret
+                    key: token
       - run: |
           kubectl apply -f scripts/e2e-test/rendezvous.yaml
           kubectl apply -f scripts/e2e-test/openbao.yaml

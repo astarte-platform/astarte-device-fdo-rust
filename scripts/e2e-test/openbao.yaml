@@ -89,3 +89,12 @@ spec:
       name: http
   selector:
     app: openbao
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: astarte-vault-secret
+  namespace: astarte
+type: Opaque
+stringData:
+  token: astarte_token
