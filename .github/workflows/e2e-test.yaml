@@ -32,7 +32,7 @@ env:
   RUSTC_WRAPPER: "sccache"
   RUSTFLAGS: -D warnings
 jobs:
-  e2e-test:
+  fdo:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
@@ -51,3 +51,20 @@ jobs:
       - run: |
           just setup
           just run
+  astarte:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/install-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: astarte-platform/astarte-cluster-action@1c1eb4d5988cf9843e00dccf54f97a73b5a1c877
+        with:
+          astarte_version: 1.4.0-rc.5
+          astarte_chart_version: 26.7.0-rc.4
+      - run: |
+          echo '127.0.0.1 test.api.autotest.astarte-platform.org' | sudo tee -a /etc/hosts
+      - run: ./scripts/e2e-test/run.sh
+      - name: post
+        if: ${{ failure() || cancelled() }}
+        run: ./scripts/e2e-test/post.sh 'astarte'

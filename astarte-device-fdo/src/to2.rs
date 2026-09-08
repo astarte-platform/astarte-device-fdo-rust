@@ -43,6 +43,7 @@ use astarte_fdo_protocol::v101::to2::done::Done;
 use astarte_fdo_protocol::v101::to2::get_ov_next_entry::GetOvNextEntry;
 use astarte_fdo_protocol::v101::to2::hello_device::HelloDevice;
 use astarte_fdo_protocol::v101::to2::ov_next_entry::OvNextEntry;
+use astarte_fdo_protocol::v101::to2::owner_service_info::OwnerServiceInfo;
 use astarte_fdo_protocol::v101::to2::prove_device::ProveDevice;
 use astarte_fdo_protocol::v101::to2::prove_ov_hdr::{
     ProveOvHdr, PvOvHdrPayload, PvOvHdrUnprotected,
@@ -723,25 +724,37 @@ impl<'a, D> To2<'a, D, DvReady> {
 
         self.service_info.reset()?;
 
-        loop {
-            info!("To2.DeviceServiceInfo started");
+        info!("To2.DeviceServiceInfo started");
 
-            let own_srv_info = self.state.client.send(ctx, &device_srv_info).await?;
+        let mut own_srv_info = self.owner_srv_info(ctx, &device_srv_info).await?;
 
-            debug!(?own_srv_info, "Owner service info");
+        // NOTE: The spec has 1,000,000 roundtrips but we should finish in no more than 100
+        let mut roundtrips: u32 = 100;
 
-            info!(
-                len = own_srv_info.service_info.len(),
-                "To2.OwnerServiceInfo received"
-            );
-
-            for i in &own_srv_info.service_info {
-                self.service_info.decode(i)?;
+        while !own_srv_info.is_done && roundtrips > 0 {
+            if !own_srv_info.is_more_service_info {
+                return Err(Error::new(
+                    ErrorKind::Invalid,
+                    "device info more is false, but own srv info not done and more flag is false",
+                ));
             }
 
-            if own_srv_info.is_done {
-                break;
+            if own_srv_info.service_info.is_empty() {
+                warn!("empty own_srv_info and more flag set, this will continue the loop")
             }
+
+            let more = DeviceServiceInfo::new(false, Vec::new());
+
+            own_srv_info = self.owner_srv_info(ctx, &more).await?;
+
+            roundtrips = roundtrips.saturating_sub(1);
+        }
+
+        if roundtrips == 0 {
+            return Err(Error::new(
+                ErrorKind::OutOfRange,
+                "too many roundtrips for service info ",
+            ));
         }
 
         let srv_mod = self.service_info.finalize()?;
@@ -760,6 +773,31 @@ impl<'a, D> To2<'a, D, DvReady> {
         };
 
         Ok((this, srv_mod))
+    }
+
+    async fn owner_srv_info<C, S>(
+        &mut self,
+        ctx: &mut Ctx<'_, C, S>,
+        device_srv_info: &DeviceServiceInfo<'_>,
+    ) -> Result<OwnerServiceInfo<'static>, Error>
+    where
+        C: Crypto,
+        D: ServiceInfoDecode,
+    {
+        let own_srv_info = self.state.client.send(ctx, device_srv_info).await?;
+
+        debug!(?own_srv_info, "Owner service info");
+
+        info!(
+            len = own_srv_info.service_info.len(),
+            "To2.OwnerServiceInfo received"
+        );
+
+        for i in &own_srv_info.service_info {
+            self.service_info.decode(i)?;
+        }
+
+        Ok(own_srv_info)
     }
 }
 
