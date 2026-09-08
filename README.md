@@ -32,3 +32,43 @@ To test the example you can run:
 just setup
 just run
 ```
+
+## Using the `fdo-cli`
+
+In the `e2e-test` crate we implement a CLI to perform the device on-boarding.
+
+To use it you will need to setup all the required servers as a pre-requisite: manufacturing,
+rendezvous, and owner.
+
+The cli works in two steps, the first for the Device Initialization where it will create an
+ownership voucher for the device.
+
+```sh
+cargo run -- palin-fs di \
+  --storage <DIR>
+  --manufacturing-url <MANUFACTURING_URL> \
+  --export-guid <EXPORT_GUID>
+```
+
+Then, when the device has completed the DI, you can fetch the ownership voucher and uploaded it to
+your owner server to start the TO0 protocol. To complete the FDO protocol on the device, you will
+then run:
+
+```sh
+cargo run -- palin-fs to \
+  --storage <DIR> \
+  --astarte-mod=true \
+  --json
+```
+
+This will print the Astarte information as a JSON to connect and send data to Astarte with the
+following shape:
+
+```json
+{
+  "base_url": "http://api.astarte.localhost",
+  "realm": "test",
+  "device_id": "Xojzk32TQxmw0zYzL4lA1w",
+  "secret": "SECRET",
+}
+```

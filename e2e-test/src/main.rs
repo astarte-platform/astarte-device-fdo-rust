@@ -16,6 +16,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::{self, IsTerminal};
 use std::path::PathBuf;
 
 use astarte_device_fdo::Ctx;
@@ -28,8 +29,8 @@ use astarte_device_fdo::srv_info::{AstarteMod, AstarteModBuilder, SkipServiceInf
 use astarte_device_fdo::storage::{FileStorage, Storage};
 use astarte_device_fdo::to1::To1;
 use astarte_device_fdo::to2::{Hello, To2};
-use clap::{Parser, Subcommand};
-use eyre::{bail, eyre};
+use clap::{ArgAction, Parser, Subcommand};
+use eyre::{Context, bail, eyre};
 use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -39,7 +40,9 @@ const MANUFACTURER_URL: &str = "http://127.0.0.1:8038";
 const SERIAL: &str = "e626207f-5fcc-456e-b1bc-250c9c8efb47";
 const MODEL: &str = "fdo-astarte";
 
+/// Command line to run FIDO Ownership transfer
 #[derive(Debug, Parser)]
+#[clap(version, about)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -47,16 +50,19 @@ struct Cli {
 
 #[derive(Debug, Clone, Subcommand)]
 enum Command {
+    /// Run FDO using a directory as storage
     PlainFs {
-        #[arg(long, default_value = ".tmp/fdo-astarte")]
+        /// Directory to store the FDO file
+        #[arg(long, default_value = ".tmp/fdo-astarte", global = true)]
         storage: PathBuf,
 
         #[command(subcommand)]
-        proto: Protocol,
+        proto: Operation,
     },
+    /// Use a TPM for crypto operations
     #[cfg(all(feature = "tpm", target_os = "linux"))]
     UseTpm {
-        // TODO: remove
+        /// Directory to store the FDO file
         #[arg(long, default_value = ".tmp/fdo-astarte")]
         storage: PathBuf,
 
@@ -72,20 +78,26 @@ enum Command {
         pcrs: Vec<u8>,
 
         #[command(subcommand)]
-        proto: Protocol,
+        proto: Operation,
     },
 }
 
+/// Operation to perform
 #[derive(Debug, Clone, Subcommand)]
-enum Protocol {
-    Inspect,
+enum Operation {
+    /// Device initialization.
+    ///
+    /// Generates the device keys and ownership voucher with the manufacturing server.
     Di {
+        /// URL of the manufacturing server
         #[arg(long, default_value = MANUFACTURER_URL)]
         manufacturing_url: url::Url,
 
+        /// Serial-number for the device
         #[arg(long, default_value = SERIAL)]
         serial_no: String,
 
+        /// Model-number of the device
         #[arg(long, default_value = MODEL)]
         model_no: String,
 
@@ -93,20 +105,32 @@ enum Protocol {
         #[arg(long)]
         export_guid: Option<PathBuf>,
     },
+    // Transfers ownership to the cloud.
     To {
-        #[arg(long)]
+        /// Enables or disable the Astarte module
+        #[arg(long, default_value = "true", action = ArgAction::Set)]
         astarte_mod: bool,
+
+        /// Serial-number for the device
+        #[arg(long, default_value = SERIAL)]
+        serial_no: String,
+
+        /// Output the Astarte mod as JSON
+        #[arg(long, default_value = "true", requires = "astarte_mod")]
+        json: bool,
     },
+    /// View the stored files.
+    View,
 }
 
-impl Protocol {
+impl Operation {
     async fn run<C, S>(self, ctx: &mut Ctx<'_, C, S>) -> eyre::Result<()>
     where
         C: Crypto,
         S: Storage,
     {
         match self {
-            Protocol::Inspect => {
+            Operation::View => {
                 let Some(dc) = Di::read_existing(ctx).await? else {
                     info!("device credentials missing, DI not yet completed");
 
@@ -115,7 +139,7 @@ impl Protocol {
 
                 info!(?dc);
             }
-            Protocol::Di {
+            Operation::Di {
                 manufacturing_url,
                 serial_no,
                 model_no,
@@ -140,7 +164,11 @@ impl Protocol {
                     info!(path = %path.display(), "guid exported");
                 }
             }
-            Protocol::To { astarte_mod } => {
+            Operation::To {
+                astarte_mod,
+                serial_no,
+                json,
+            } => {
                 let Some(dc) = Di::read_existing(ctx).await? else {
                     bail!("device credentials missing, DI not yet completed");
                 };
@@ -155,21 +183,34 @@ impl Protocol {
                     return Ok(());
                 }
 
-                // TODO: this should be the same from the mfg_info
-                let sn = uuid::Uuid::now_v7().to_string();
-
                 let rv = To1::new(&dc).rv_owner(ctx).await?;
 
                 if astarte_mod {
-                    let (to2, srv_mod) = To2::create(dc, rv, &sn, AstarteMod::builder())?
+                    let (to2, srv_mod) = To2::create(dc, rv, &serial_no, AstarteMod::builder())?
                         .to2_change(ctx)
                         .await?;
 
-                    info!(?srv_mod, "credentials received");
+                    info!("credentials received");
+
+                    if json {
+                        let out = serde_json::json!({
+                            "base_url": srv_mod.base_url,
+                            "realm": srv_mod.realm,
+                            "device_id": srv_mod.device_id,
+                            "secret": srv_mod.secret,
+                        });
+
+                        let stdout = io::stdout();
+
+                        serde_json::to_writer(stdout, &out)
+                            .wrap_err("couldn't print astarte info")?;
+                    } else {
+                        println!("{srv_mod}");
+                    }
 
                     to2.done(ctx).await?;
                 } else {
-                    let (to2, ()) = To2::create(dc, rv, &sn, SkipServiceInfo::default())?
+                    let (to2, ()) = To2::create(dc, rv, &serial_no, SkipServiceInfo::default())?
                         .to2_change(ctx)
                         .await?;
 
@@ -188,13 +229,20 @@ async fn main() -> eyre::Result<()> {
 
     color_eyre::install()?;
 
+    let is_terminal = cfg!(not(windows)) || io::stderr().is_terminal();
+
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(is_terminal)
+                .with_writer(io::stderr),
+        )
         .with(
             tracing_subscriber::EnvFilter::builder()
-                .with_default_directive("info".parse()?)
+                .with_default_directive(tracing::Level::INFO.into())
                 .from_env_lossy(),
         )
+        .with(tracing_error::ErrorLayer::default())
         .try_init()?;
 
     rustls::crypto::aws_lc_rs::default_provider()
