@@ -18,6 +18,8 @@
 
 //! Modules to read Service Info
 
+use std::fmt::Display;
+
 use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::service_info::ServiceInfoKv;
@@ -95,6 +97,19 @@ impl AstarteMod {
     /// Returns the Astarte mod builder
     pub fn builder() -> AstarteModBuilder {
         AstarteModBuilder::default()
+    }
+}
+
+impl Display for AstarteMod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            realm,
+            secret,
+            base_url,
+            device_id,
+        } = self;
+
+        writeln!(f, "[{realm} {secret} {base_url} {device_id}]")
     }
 }
 

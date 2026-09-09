@@ -20,6 +20,7 @@
 set shell := ['bash', '-euo', 'pipefail', '-c']
 # Allow `which`
 set unstable
+set lists
 
 # Get the container runtime
 export CONTAINER := if which("podman") != "" {
@@ -81,7 +82,12 @@ client-di:
 # Runs the example Transfer Ownership
 [group('client')]
 client-to:
-    cargo e2e-test plain-fs to
+    cargo e2e-test plain-fs to --astarte-mod=false
+
+# Runs the example Transfer Ownership with Astarte
+[group('client')]
+astarte-to:
+    cargo e2e-test plain-fs to --astarte-mod=true
 
 # Shows the device credentials
 [group('client')]
@@ -214,7 +220,7 @@ astarte-setup: astarte-clone astarte-genkeys go-server-setup astarte-build astar
 
 # Builds and starts astarte
 [group('astarte')]
-astarte-run: go-server-start astarte-rv-info client-di astarte-send-to0 client-to
+astarte-run: go-server-start astarte-rv-info client-di astarte-send-to0 astarte-to
 
 [group('astarte')]
 astarte-clone:
@@ -270,7 +276,7 @@ clea-dev-setup: go-server-setup clea-dev-healthy
 
 # Run FDO against clea-dev
 [group('clea-dev')]
-clea-dev-run: go-server-start clea-dev-rv-info client-di clea-dev-send-to0 client-to
+clea-dev-run: go-server-start clea-dev-rv-info client-di clea-dev-send-to0 astarte-to
 
 [group('clea-dev')]
 clea-dev-rv-info:
