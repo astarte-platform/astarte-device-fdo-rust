@@ -25,7 +25,11 @@ members = [
 ]
 
 [workspace.package]
+<<<<<<< Updated upstream
 version = "1.0.2"
+=======
+version = "1.0.4"
+>>>>>>> Stashed changes
 edition = "2024"
 homepage = "https://astarte.cloud/"
 license = "Apache-2.0"
@@ -33,8 +37,13 @@ repository = "https://github.com/astarte-platform/astarte-device-fdo-rust"
 rust-version = "1.88"
 
 [workspace.dependencies]
+<<<<<<< Updated upstream
 astarte-device-fdo = { version = "1.0.2", path = "./astarte-device-fdo" }
 astarte-fdo-protocol = { version = "1.0.2", path = "./astarte-fdo-protocol" }
+=======
+astarte-device-fdo = { path = "./astarte-device-fdo", version = "1.0.4" }
+astarte-fdo-protocol = { path = "./astarte-fdo-protocol", version = "1.0.4" }
+>>>>>>> Stashed changes
 aws-lc-rs = "1.14.0"
 ciborium = "0.2.1"
 coset = "0.4.0"
