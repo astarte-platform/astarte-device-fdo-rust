@@ -44,8 +44,39 @@ const MODEL: &str = "fdo-astarte";
 #[derive(Debug, Parser)]
 #[clap(version, about)]
 struct Cli {
+    /// Sets the log level for the program, the `RUST_LOG` env filter variable is also supported.
+    #[arg(long, global = true, default_value = "info")]
+    log_level: LogLevel,
+
     #[command(subcommand)]
     command: Command,
+}
+
+/// Log level to print to stderror
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum LogLevel {
+    /// Really verbose output
+    Trace,
+    /// Preferred level to gather additional information
+    Debug,
+    /// Show the operation progress
+    Info,
+    /// Prints only warning and error
+    Warn,
+    /// Only prints errors
+    Error,
+}
+
+impl From<LogLevel> for tracing::Level {
+    fn from(value: LogLevel) -> Self {
+        match value {
+            LogLevel::Trace => tracing::Level::TRACE,
+            LogLevel::Debug => tracing::Level::DEBUG,
+            LogLevel::Info => tracing::Level::INFO,
+            LogLevel::Warn => tracing::Level::WARN,
+            LogLevel::Error => tracing::Level::ERROR,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -231,6 +262,8 @@ async fn main() -> eyre::Result<()> {
 
     let is_terminal = cfg!(not(windows)) || io::stderr().is_terminal();
 
+    let level = tracing::Level::from(cli.log_level);
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::fmt::layer()
@@ -239,7 +272,7 @@ async fn main() -> eyre::Result<()> {
         )
         .with(
             tracing_subscriber::EnvFilter::builder()
-                .with_default_directive(tracing::Level::INFO.into())
+                .with_default_directive(level.into())
                 .from_env_lossy(),
         )
         .with(tracing_error::ErrorLayer::default())

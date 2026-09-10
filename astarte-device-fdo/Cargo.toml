@@ -46,6 +46,7 @@ coset.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
 http.workspace = true
+mime.workspace = true
 p256 = { workspace = true, optional = true, default-features = false, features = ["ecdsa-core", "alloc"] }
 pin-project-lite.workspace = true
 rand = { workspace = true, default-features = false, features = ["sys_rng", "thread_rng"] }
