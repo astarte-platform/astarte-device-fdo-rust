@@ -1,12 +1,12 @@
 # This file is part of Astarte.
 #
-# Copyright 2025, 2026 SECO Mind Srl
+# Copyright 2022-2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,14 +31,42 @@ env:
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
   RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  NEXTEST_PROFILE: "ci"
+  MAIN_CRATE: "astarte-device-fdo"
+  EXPORT_FOR_CI: "true"
 jobs:
-  fdo:
-    runs-on: ubuntu-24.04
+  e2e-test:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - name: Create Astarte Cluster
+        uses: astarte-platform/astarte-cluster-action@1f7064e5924b650213d4fccad6bc123c7e058702
+        with:
+          astarte_version: 1.4.0-rc.5
+          astarte_chart_version: 26.7.0-rc.4
       - uses: ./.github/actions/install-deps
-      - uses: actions-rust-lang/setup-rust-toolchain@v1.15.2
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+      - uses: mozilla-actions/sccache-action@v0.0.11
+      - run: |
+          echo '127.0.0.1 test.api.autotest.astarte-platform.org' | sudo tee -a /etc/hosts
+      - run: ./scripts/ci/e2e-test.sh
+      - name: post
+        if: ${{ failure() || cancelled() }}
+        run: ./scripts/ci/e2e-post.sh 'astarte'
+  fdo:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: ./.github/actions/install-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - name: cache container build
         id: cache-container
         uses: actions/cache@v5.0.3
@@ -51,20 +79,3 @@ jobs:
       - run: |
           just setup
           just run
-  astarte:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/install-deps
-      - uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - uses: astarte-platform/astarte-cluster-action@c7016921e7984555e05baf98baf17540e3fe8f4d
-        with:
-          astarte_version: 1.4.0-rc.5
-          astarte_chart_version: 26.7.0-rc.4
-      - run: |
-          echo '127.0.0.1 test.api.autotest.astarte-platform.org' | sudo tee -a /etc/hosts
-      - run: ./scripts/e2e-test/run.sh
-      - name: post
-        if: ${{ failure() || cancelled() }}
-        run: ./scripts/e2e-test/post.sh 'astarte'
