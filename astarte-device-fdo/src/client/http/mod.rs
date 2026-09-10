@@ -18,6 +18,7 @@
 
 //! FDO client for the HTTP protocol
 
+use std::str::FromStr;
 use std::time::Duration;
 
 use astarte_fdo_protocol::Error;
@@ -28,6 +29,7 @@ use astarte_fdo_protocol::v101::{
 };
 use http::header::AUTHORIZATION;
 use http::{HeaderMap, StatusCode, header};
+use mime::Mime;
 use reqwest::Method;
 use reqwest::header::{HeaderName, HeaderValue};
 use rustls::ClientConfig;
@@ -43,7 +45,8 @@ use super::EncMessage;
 
 mod retry;
 
-const CBOR_MIME: HeaderValue = HeaderValue::from_static("application/cbor");
+const CBOR_MIME: &str = "application/cbor";
+const CBOR_CONTENT_TYPE: HeaderValue = HeaderValue::from_static(CBOR_MIME);
 const MESSAGE_TYPE_HEADER: HeaderName = HeaderName::from_static("message-type");
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -215,7 +218,7 @@ impl HttpClient {
     /// Create the HTTP client from a base_url
     pub fn create(base_url: Url, tls: rustls::ClientConfig) -> Result<Self, Error> {
         let mut headers = HeaderMap::new();
-        headers.insert(header::CONTENT_TYPE, CBOR_MIME);
+        headers.insert(header::CONTENT_TYPE, CBOR_CONTENT_TYPE);
 
         let inner = reqwest::ClientBuilder::new()
             .use_preconfigured_tls(tls)
@@ -402,10 +405,26 @@ impl HttpClient {
             "HTTP Content-Type header missing",
         ))?;
 
-        if content_type != CBOR_MIME {
-            let content_type = String::from_utf8_lossy(content_type.as_bytes());
+        let content_type = content_type
+            .to_str()
+            .map_err(|error| {
+                error!(%error, "CONTENT_TYPE header not UTF-8");
 
-            error!(%content_type, "invalid CONTENT_TYPE header");
+                Error::new(ErrorKind::Invalid, "CONTENT_TYPE header is not UTF-8")
+            })
+            .and_then(|content_type| {
+                Mime::from_str(content_type).map_err(|error| {
+                    error!(%error,"couldn't parse mime for CONTENT_TYPE header");
+
+                    Error::new(
+                        ErrorKind::Invalid,
+                        "couldn't parse CONTENT_TYPE header mime",
+                    )
+                })
+            })?;
+
+        if content_type.essence_str() != CBOR_MIME {
+            error!(%content_type, "invalid CONTENT_TYPE header, must be {CBOR_MIME}");
 
             return Err(Error::new(ErrorKind::Invalid, "HTTP mime type"));
         }

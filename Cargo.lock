@@ -137,6 +137,7 @@ dependencies = [
  "futures-util",
  "http",
  "insta",
+ "mime",
  "mockito",
  "p256",
  "pin-project-lite",

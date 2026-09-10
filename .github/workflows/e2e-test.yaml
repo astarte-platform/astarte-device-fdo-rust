@@ -58,7 +58,7 @@ jobs:
       - uses: ./.github/actions/install-deps
       - uses: actions-rust-lang/setup-rust-toolchain@v1.15.4
       - uses: mozilla-actions/sccache-action@v0.0.9
-      - uses: astarte-platform/astarte-cluster-action@1c1eb4d5988cf9843e00dccf54f97a73b5a1c877
+      - uses: astarte-platform/astarte-cluster-action@c7016921e7984555e05baf98baf17540e3fe8f4d
         with:
           astarte_version: 1.4.0-rc.5
           astarte_chart_version: 26.7.0-rc.4
