@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,6 +47,10 @@ struct Cli {
     /// Sets the log level for the program, the `RUST_LOG` env filter variable is also supported.
     #[arg(long, global = true, default_value = "info")]
     log_level: LogLevel,
+
+    /// Allow insecure server connections
+    #[arg(long, global = true)]
+    insecure_tls: bool,
 
     #[command(subcommand)]
     command: Command,
@@ -282,18 +286,11 @@ async fn main() -> eyre::Result<()> {
         .install_default()
         .map_err(|_| eyre!("couldn't install crypto provider"))?;
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "platform-tls")] {
-            use rustls_platform_verifier::BuilderVerifierExt;
-            let tls = rustls::ClientConfig::builder().with_platform_verifier()?.with_no_client_auth();
-        } else if #[cfg(feature = "webpki-roots")] {
-            let tls = rustls::ClientConfig::builder().with_root_certificates(root_store).with_no_client_auth();
-        } else {
-            compile_error!("select one feature between 'platform-tls' and 'webpki-roots' for TLS")
-        }
+    let tls = if cli.insecure_tls {
+        astarte_device_tls::insecure::insecure().wrap_err("couldn't configure TLS")?
+    } else {
+        astarte_device_tls::config().wrap_err("couldn't configure TLS")?
     };
-
-    let tls = tls;
 
     match cli.command {
         Command::PlainFs { storage, proto } => {
