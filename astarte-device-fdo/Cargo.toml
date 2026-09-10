@@ -6,7 +6,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,26 +46,12 @@ coset.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
 http.workspace = true
-p256 = { workspace = true, optional = true, default-features = false, features = [
-  "ecdsa-core",
-  "alloc"
-] }
+mime.workspace = true
+p256 = { workspace = true, optional = true, default-features = false, features = ["ecdsa-core", "alloc"] }
 pin-project-lite.workspace = true
-rand = { workspace = true, default-features = false, features = [
-  "sys_rng",
-  "thread_rng"
-] }
-rcgen = { workspace = true, default-features = false, features = [
-  "crypto",
-  "pem",
-  "aws_lc_rs"
-] }
-reqwest = { workspace = true, default-features = false, features = [
-  "charset",
-  "http2",
-  "system-proxy",
-  "rustls-no-provider"
-] }
+rand = { workspace = true, default-features = false, features = ["sys_rng", "thread_rng"] }
+rcgen = { workspace = true, default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
+reqwest = { workspace = true, default-features = false, features = ["charset", "http2", "system-proxy", "rustls-no-provider"] }
 rustls.workspace = true
 serde.workspace = true
 serde_bytes.workspace = true
