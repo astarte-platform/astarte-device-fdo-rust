@@ -25,7 +25,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.3"
+version = "1.0.4"
 edition = "2024"
 homepage = "https://astarte.cloud/"
 license = "Apache-2.0"
@@ -33,9 +33,9 @@ repository = "https://github.com/astarte-platform/astarte-device-fdo-rust"
 rust-version = "1.88"
 
 [workspace.dependencies]
-astarte-device-fdo = { path = "./astarte-device-fdo", version = "1.0.3" }
+astarte-device-fdo = { path = "./astarte-device-fdo", version = "1.0.4" }
 astarte-device-tls = { version = "0.15.0", default-features = false }
-astarte-fdo-protocol = { path = "./astarte-fdo-protocol", version = "1.0.3" }
+astarte-fdo-protocol = { path = "./astarte-fdo-protocol", version = "1.0.4" }
 aws-lc-rs = "1.14.0"
 cfg-if = "1.0.4"
 ciborium = "0.2.1"
