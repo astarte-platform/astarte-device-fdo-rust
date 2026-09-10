@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -303,7 +303,9 @@ pub(crate) mod tests {
         assert!(hex.is_ascii());
 
         hex.as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|str| {
                 let str = str::from_utf8(str).expect("should be hex");
 
@@ -340,7 +342,9 @@ pub(crate) mod tests {
     fn guid_deref() {
         let bytes: Vec<u8> = "43bc9e0f731a4e7f947c5d03b0c1e483"
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .rev()
             .map(|str| {
                 let str = str::from_utf8(str).expect("should be hex");

@@ -28,16 +28,32 @@ if [[ -n ${RUNNER_DEBUG:-} ]]; then
     set -x
 fi
 
-if [ $# != 2 ]; then
-    base=${BASE_REF:-main}
-    head=${HEAD_REF:-HEAD}
-else
-    base=$1
-    head=$2
-fi
+NAMESPACE="$1"
 
-git_file_names() {
-    git diff --name-only "$base" "$head"
+describe_namespace() {
+    local namespace=$1
+
+    kubectl get pods -n "$namespace"
+
+    for pod in $(kubectl get pods -n "$namespace" --no-headers -o custom-columns=":metadata.name"); do
+        echo "==== NAMESPACE($namespace) POD($pod) ===="
+
+        kubectl describe pod -n "$namespace" "$pod"
+
+        echo "==== NAMESPACE($namespace) LOGS($pod) ===="
+
+        kubectl logs -n "$namespace" "$pod"
+
+        echo "========"
+    done
 }
 
-git_file_names | xargs --max-args 1 -P "$(nproc)" ./scripts/ci/copyright.sh
+describe_namespace "rabbitmq-system"
+describe_namespace "scylla-operator"
+
+kubectl describe astarte astarte -n "$NAMESPACE"
+
+kubectl describe deployments/astarte-operator-controller-manager -n astarte-operator
+kubectl logs deployments/astarte-operator-controller-manager -n astarte-operator
+
+describe_namespace "astarte"
