@@ -127,7 +127,7 @@ dependencies = [
 
 [[package]]
 name = "astarte-device-fdo"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "astarte-fdo-protocol",
  "aws-lc-rs",
@@ -158,7 +158,7 @@ dependencies = [
 
 [[package]]
 name = "astarte-fdo-protocol"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "ciborium",
  "coset",
@@ -656,7 +656,7 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "e2e-test"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "astarte-device-fdo",
  "cfg-if",
