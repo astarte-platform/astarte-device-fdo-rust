@@ -28,6 +28,11 @@ export RENDEZVOUS_HOST=${RENDEZVOUS_HOST:-rendezvous.localhost}
 export FDODIR='./.tmp/fdo'
 export FDO_DEVICE_GUID="$FDODIR/device_guid.txt"
 
+if [[ -z ${ASTARTE_DEVICE_ID:-} ]]; then
+    ASTARTE_DEVICE_ID=$(astartectl utils device-id generate-random)
+    export ASTARTE_DEVICE_ID
+fi
+
 ./scripts/astarte/healthy.sh
 ./scripts/common/try-curl.sh "$RENDEZVOUS_HOST/health"
 
@@ -99,7 +104,7 @@ mf_info=$(printf '[
 # DI part of the protocol
 #
 
-cargo e2e-test plain-fs di --export-guid "$FDO_DEVICE_GUID"
+cargo e2e-test plain-fs di --serial-no "$ASTARTE_DEVICE_ID" --export-guid "$FDO_DEVICE_GUID"
 
 GUID=$(
     curl --fail-with-body http://localhost:8038/api/v1/vouchers |
@@ -127,8 +132,10 @@ voucher=$(cat "$voucherdir/$GUID")
 json=$(
     jq --null-input \
         --arg ownership_voucher "$voucher" \
+        --arg hw_id "$ASTARTE_DEVICE_ID" \
         '{
             "data": {
+                "hw_id": $hw_id,
                 "ownership_voucher": $ownership_voucher,
                 "key_name": "test",
                 "key_algorithm": "ecdsa-p256"
@@ -144,4 +151,4 @@ json=$(
 ###
 # TO1 and TO2 part of the protocol
 #
-cargo e2e-test plain-fs to --astarte-mod=true
+cargo e2e-test plain-fs to --serial-no "$ASTARTE_DEVICE_ID" --astarte-mod=true
