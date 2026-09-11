@@ -44,10 +44,11 @@ jobs:
         with:
           submodules: true
       - name: Create Astarte Cluster
-        uses: astarte-platform/astarte-cluster-action@1f7064e5924b650213d4fccad6bc123c7e058702
+        uses: astarte-platform/astarte-cluster-action@38c1b9f9dd009be4ad28a18b3cf5570a5149a04f
         with:
-          astarte_version: 1.4.0-rc.5
-          astarte_chart_version: 26.7.0-rc.4
+          astarte_version: 1.4.0-rc.6
+          astarte_chart_version: 26.7.0-rc.6
+          astarte_operator_tag: 26.7.0-rc.6
       - uses: ./.github/actions/install-deps
       - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
       - uses: mozilla-actions/sccache-action@v0.0.11
