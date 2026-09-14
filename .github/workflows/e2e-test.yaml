@@ -73,7 +73,7 @@ jobs:
         with:
           path: .tmp/cache/containers
           key: ${{ runner.os }}-${{ hashFiles('justfile', 'scripts/**/*.sh', 'containers/**') }}
-      - uses: taiki-e/install-action@v2.87.7
+      - uses: taiki-e/install-action@v2.87.9
         with:
           tool: just
       - run: |
