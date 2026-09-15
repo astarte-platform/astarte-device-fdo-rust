@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -63,6 +63,20 @@ impl<'a, T> CborBstr<'a, T> {
 
             Ok(Cow::Owned(buf.into()))
         })
+    }
+
+    /// Gets a reference to the value
+    pub fn get_value(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> Display for CborBstr<'_, T>
+where
+    T: Display + Serialize,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "bstr .cbor {:#}", self.value)
     }
 }
 
@@ -140,6 +154,17 @@ impl<const MIN: usize, T> Repetition<MIN, T> {
     }
 }
 
+impl<const MIN: usize, T> Display for Repetition<MIN, T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let entries = self.iter().map(DisplayDebug);
+
+        f.debug_list().entries(entries).finish()
+    }
+}
+
 impl<const MIN: usize, T> Deref for Repetition<MIN, T> {
     type Target = Vec<T>;
 
@@ -198,6 +223,50 @@ impl Display for Hex<'_> {
         }
 
         Ok(())
+    }
+}
+
+/// Struct  that implement Debug as Display.
+pub(crate) struct DisplayDebug<T>(pub(crate) T);
+
+impl<T> Display for DisplayDebug<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl<T> Debug for DisplayDebug<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+/// Struct that implement Display for a slice.
+pub(crate) struct DisplaySlice<'a, T>(pub(crate) &'a [T]);
+
+impl<'a, T> Display for DisplaySlice<'a, T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let entries = self.0.iter().map(DisplayDebug);
+
+        f.debug_list().entries(entries).finish()
+    }
+}
+
+impl<'a, T> Debug for DisplaySlice<'a, T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self, f)
     }
 }
 

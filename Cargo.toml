@@ -37,6 +37,7 @@ astarte-device-fdo = { path = "./astarte-device-fdo", version = "1.0.5" }
 astarte-device-tls = { version = "0.15.0", default-features = false }
 astarte-fdo-protocol = { path = "./astarte-fdo-protocol", version = "1.0.5" }
 aws-lc-rs = "1.14.0"
+base64 = "0.23.1"
 cfg-if = "1.0.4"
 ciborium = "0.2.1"
 clap = "4.5.53"
@@ -58,6 +59,7 @@ rcgen = { version = "0.14.0", default-features = false, features = ["aws_lc_rs",
 reqwest = { version = "0.13.0", default-features = false, features = ["charset", "http2", "rustls-no-provider", "system-proxy"] }
 rustc-hash = "2.1.0"
 rustls = { version = "0.23.41", default-features = false, features = ["aws-lc-rs", "logging", "prefer-post-quantum", "read_buf", "std", "tls12"] }
+rustls-pki-types = "1.15.1"
 serde = "1.0.220"
 serde_bytes = "0.11.15"
 serde_json = "1.0.151"
