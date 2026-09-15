@@ -6,7 +6,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,7 +24,6 @@ edition.workspace = true
 homepage.workspace = true
 keywords = ["fido", "fdo", "astarte", "iot"]
 license.workspace = true
-readme = "README.md"
 repository.workspace = true
 rust-version.workspace = true
 description = "FIDO Device Onboarding message parsing library"
@@ -37,7 +36,6 @@ rustc-hash.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_bytes.workspace = true
 tracing = { workspace = true, optional = true }
-tracing-subscriber.workspace = true
 x509-parser.workspace = true
 
 [features]
