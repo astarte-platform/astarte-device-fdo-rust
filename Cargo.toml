@@ -58,7 +58,6 @@ rcgen = { version = "0.14.0", default-features = false, features = ["aws_lc_rs",
 reqwest = { version = "0.13.0", default-features = false, features = ["charset", "http2", "rustls-no-provider", "system-proxy"] }
 rustc-hash = "2.1.0"
 rustls = { version = "0.23.41", default-features = false, features = ["aws-lc-rs", "logging", "prefer-post-quantum", "read_buf", "std", "tls12"] }
-rustls-platform-verifier = "0.7.0"
 serde = "1.0.220"
 serde_bytes = "0.11.15"
 serde_json = "1.0.151"
@@ -69,7 +68,5 @@ tracing-error = "0.2.1"
 tracing-subscriber = "0.3.20"
 tss-esapi = "7.7.0"
 url = "2.4.0"
-uuid = "1.19.0"
-webpki-roots = "1.0.4"
 x509-parser = "0.18.0"
 zeroize = "1.8.0"
