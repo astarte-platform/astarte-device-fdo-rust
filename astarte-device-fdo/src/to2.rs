@@ -424,7 +424,7 @@ impl<'a, D> To2<'a, D, VerifyChain> {
         let mut hash_prev_entry = self.state.payload.ov_header.bytes()?.to_vec();
         // Use the vec as writer to extend it
         ciborium::into_writer(&self.state.payload.hmac, &mut hash_prev_entry).map_err(|err| {
-            error!(error = %err, "couldn't hmac");
+            error!(error = %err, "couldn't encode hmac");
 
             Error::new(ErrorKind::Encode, "Hmac")
         })?;
@@ -511,7 +511,8 @@ impl<'a, D> To2<'a, D, VerifyChain> {
         info!("cose signature verified");
 
         // 2. Verify variable HashHdrInfo matches TO2.OVEntry.OVEHashHdrInfo
-        let (entry, payload) = entry.take_ov_entry().payload()?;
+        let entry = entry.take_ov_entry();
+        let (_, payload) = entry.clone().payload()?;
 
         C::verify_hash(payload.hdr(), &variables.hash_hdr_info)
             .inspect_err(|_| error!("couldn't validating hash hdr info"))?;
@@ -528,7 +529,12 @@ impl<'a, D> To2<'a, D, VerifyChain> {
         // 5. Update variable HashPrevEntry to SHA[TO2.OpNextEntryPayload] (this is wrong)
         // TODO: use the correct hashing of the owner public key
         // https://github.com/astarte-platform/astarte-device-fdo-rust/issues/34
-        variables.hash_prev_entry = entry;
+        variables.hash_prev_entry.clear();
+        ciborium::into_writer(&entry, &mut variables.hash_prev_entry).map_err(|error| {
+            error!(%error, "couldn't encode ov entry");
+
+            Error::new(ErrorKind::Encode, "ov entry")
+        })?;
 
         Ok(())
     }
