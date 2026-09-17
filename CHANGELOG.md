@@ -1,4 +1,6 @@
 <!--
+This file is part of Astarte.
+
 Copyright 2025, 2026 SECO Mind Srl
 
 Licensed under the Apache License, Version 2.0 (the "License");
