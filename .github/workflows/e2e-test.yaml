@@ -49,7 +49,7 @@ jobs:
           astarte_version: 1.4.0-rc.5
           astarte_chart_version: 26.7.0-rc.4
       - uses: ./.github/actions/install-deps
-      - uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
       - uses: mozilla-actions/sccache-action@v0.0.11
       - run: |
           echo '127.0.0.1 test.api.autotest.astarte-platform.org' | sudo tee -a /etc/hosts
@@ -65,7 +65,7 @@ jobs:
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
-      - uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
       - uses: mozilla-actions/sccache-action@v0.0.11
       - name: cache container build
         id: cache-container
