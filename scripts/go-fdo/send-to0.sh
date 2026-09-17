@@ -8,7 +8,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,4 +39,13 @@ voucherdir="$FDODIR/ov/ownervoucher"
 mkdir -p "$voucherdir"
 
 curl --fail -v "http://localhost:8038/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
-curl --fail --request POST 'http://localhost:8043/api/v1/owner/vouchers' --data-binary "@$voucherdir/$GUID"
+
+# Extend the voucher
+cargo run -- tool ov-extend \
+    --in-format der --alg secp256r1 \
+    --current-ow-priv "$FDODIR/certs/intermediate.key" \
+    --next-ow-cert "$FDODIR/certs/owner.crt" \
+    --voucher "$FDODIR/ov/ownervoucher/$GUID" \
+    --output "$FDODIR/ov/ownervoucher/$GUID-extended"
+
+curl --fail --request POST 'http://localhost:8043/api/v1/owner/vouchers' --data-binary "@$voucherdir/$GUID-extended"

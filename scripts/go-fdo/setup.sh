@@ -8,7 +8,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,6 +47,18 @@ if [ ! -f "$FDODIR"/certs/device_ca.crt ]; then
     openssl req -x509 -key "$FDODIR"/certs/device_ca.key -keyform der \
         -out "$FDODIR"/certs/device_ca.crt -days 365 \
         -subj "/C=US/O=Example/CN=Device CA"
+fi
+
+# Intermediate key (DER format)
+if [ ! -f "$FDODIR"/certs/intermediate.key ]; then
+    openssl ecparam -name prime256v1 -genkey -out "$FDODIR"/certs/intermediate.key -outform der
+fi
+
+# Intermediate certificate (PEM format)
+if [ ! -f "$FDODIR"/certs/intermediate.crt ]; then
+    openssl req -x509 -key "$FDODIR"/certs/intermediate.key -keyform der \
+        -out "$FDODIR"/certs/intermediate.crt -days 365 \
+        -subj "/C=US/O=Example/CN=Intermediate"
 fi
 
 # Owner key (DER format)
