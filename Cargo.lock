@@ -164,9 +164,9 @@ dependencies = [
 
 [[package]]
 name = "astarte-device-tls"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e640aead74bc93881c11a83488da9b9288d4df165979b9d94ec41de086786d0e"
+checksum = "9bce94e180cac12f0d80bce21452ddca3b617543e7457e7af0cb9ca551e669b9"
 dependencies = [
  "aws-lc-rs",
  "cfg-if",
@@ -2372,7 +2372,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
