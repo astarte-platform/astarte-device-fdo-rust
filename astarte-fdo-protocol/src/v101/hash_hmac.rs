@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@
 //! Protocol digests and signatures
 
 use std::borrow::Cow;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
@@ -76,6 +76,12 @@ impl<'a> Hash<'a> {
 impl AsRef<[u8]> for Hash<'_> {
     fn as_ref(&self) -> &[u8] {
         &self.hash
+    }
+}
+
+impl Display for Hash<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.hashtype, Hex::new(&self.hash))
     }
 }
 
@@ -140,6 +146,12 @@ impl<'a> HMac<'a> {
     /// Return the hash type.
     pub fn hash_type(&self) -> Hashtype {
         self.0.hash_type()
+    }
+}
+
+impl Display for HMac<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }
 
@@ -210,6 +222,17 @@ impl Hashtype {
         match self {
             Hashtype::Sha256 | Hashtype::Sha384 => true,
             Hashtype::HmacSha256 | Hashtype::HmacSha384 => false,
+        }
+    }
+}
+
+impl Display for Hashtype {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Hashtype::Sha256 => write!(f, "sha256"),
+            Hashtype::Sha384 => write!(f, "sha384"),
+            Hashtype::HmacSha256 => write!(f, "hmac-sha256"),
+            Hashtype::HmacSha384 => write!(f, "hmac-sha384"),
         }
     }
 }

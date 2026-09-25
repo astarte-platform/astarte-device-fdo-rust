@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,6 +24,8 @@
 //! through another link in the chain.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
+use std::fmt::Display;
 
 use coset::{AsCborValue, CoseSign1};
 use serde::{Deserialize, Serialize};
@@ -31,7 +33,7 @@ use serde_bytes::Bytes;
 
 use crate::Error;
 use crate::error::ErrorKind;
-use crate::utils::CborBstr;
+use crate::utils::{CborBstr, DisplayDebug, DisplaySlice, Hex};
 
 use super::hash_hmac::{HMac, Hash};
 use super::public_key::PublicKey;
@@ -52,11 +54,45 @@ use super::{Guid, Protver};
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct OwnershipVoucher<'a> {
-    ov_prot_ver: Protver,
-    ov_header_tag: CborBstr<'a, OvHeader<'a>>,
-    ov_header_hmac: HMac<'a>,
-    ov_dev_cert_chain: OVDevCertChainOrNull<'a>,
-    ov_entry_array: OvEntries,
+    /// Protocol version
+    ///
+    /// Must match the `OVHeader.OVHProtVer`.
+    pub ov_prot_ver: Protver,
+    /// Ownership voucher header
+    pub ov_header_tag: CborBstr<'a, OvHeader<'a>>,
+    /// HMac of the Device secret and OVHeader
+    pub ov_header_hmac: HMac<'a>,
+    /// Hash of the concatenation of the contents of each byte string in "OwnershipVoucher.OVDevCertChain"
+    pub ov_dev_cert_chain: OVDevCertChainOrNull<'a>,
+    /// Entries in the ownership voucher
+    pub ov_entry_array: OvEntries,
+}
+
+impl Display for OwnershipVoucher<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            ov_prot_ver,
+            ov_header_tag,
+            ov_header_hmac,
+            ov_dev_cert_chain,
+            ov_entry_array,
+        } = self;
+
+        let mut d = f.debug_struct("OwnershipVoucher");
+
+        d.field("ov_prot_ver", &DisplayDebug(ov_prot_ver))
+            .field("ov_header_tag", &DisplayDebug(ov_header_tag))
+            .field("ov_header_hmac", &DisplayDebug(ov_header_hmac));
+
+        if let Some(ov_dev_cert_chain) = ov_dev_cert_chain {
+            d.field("ov_dev_cert_chain", &DisplayDebug(ov_dev_cert_chain));
+        } else {
+            d.field("ov_dev_cert_chain", &None::<CoseX509>);
+        }
+
+        d.field("ov_entry_array", &DisplaySlice(ov_entry_array.as_slice()))
+            .finish()
+    }
 }
 
 impl Serialize for OwnershipVoucher<'_> {
@@ -124,6 +160,37 @@ pub struct OvHeader<'a> {
     pub ov_pub_key: PublicKey<'a>,
     /// Device certificate chain
     pub ov_dev_cert_chain_hash: OvDevCertChainHashOrNull<'a>,
+}
+
+impl Display for OvHeader<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            ovh_prot_ver,
+            ov_guid,
+            ov_rv_info,
+            ov_device_info,
+            ov_pub_key,
+            ov_dev_cert_chain_hash,
+        } = self;
+
+        let mut d = f.debug_struct("OvHeader");
+        d.field("ovh_prot_ver", &DisplayDebug(ovh_prot_ver))
+            .field("ov_guid", &DisplayDebug(ov_guid))
+            .field("ov_rv_info", &DisplayDebug(ov_rv_info))
+            .field("ov_device_info", &DisplayDebug(ov_device_info))
+            .field("ov_pub_key", &DisplayDebug(ov_pub_key));
+
+        if let Some(ov_dev_cert_chain_hash) = ov_dev_cert_chain_hash {
+            d.field(
+                "ov_dev_cert_chain_hash",
+                &DisplayDebug(ov_dev_cert_chain_hash),
+            );
+        } else {
+            d.field("ov_dev_cert_chain_hash", &None::<Hash>);
+        }
+
+        d.finish()
+    }
 }
 
 impl Serialize for OvHeader<'_> {
@@ -209,12 +276,36 @@ pub struct OvEntry {
 const SIGN_TAG: u64 = coset::iana::CborTag::CoseSign1 as u64;
 
 impl OvEntry {
+    /// Create a new entry.
+    pub fn new(entry: CoseSign1) -> Self {
+        Self { entry }
+    }
+
     /// Returns the Cose sign
     pub fn sign(&self) -> &CoseSign1 {
         &self.entry
     }
 
     /// Return the [CoseSign1] payload decode for this entry.
+    pub fn try_payload(&self) -> Result<OvEntryPayload<'static>, Error> {
+        let payload = self
+            .entry
+            .payload
+            .as_deref()
+            .ok_or(Error::new(ErrorKind::Invalid, "OVEntry payload is missing"))?;
+
+        let value: OvEntryPayload<'static> = ciborium::from_reader(payload).map_err(|err| {
+            #[cfg(feature = "tracing")]
+            tracing::error!(error = %err, "couldn't decode OvEntryPayload");
+
+            Error::new(ErrorKind::Decode, "the OVEntry payload")
+        })?;
+
+        Ok(value)
+    }
+
+    /// Return the [CoseSign1] payload decode for this entry.
+    #[deprecated(since = "1.1.0", note = "use try_payload")]
     pub fn payload(self) -> Result<(Vec<u8>, OvEntryPayload<'static>), Error> {
         let payload = self
             .entry
@@ -230,6 +321,27 @@ impl OvEntry {
             })?;
 
         Ok((payload, value))
+    }
+}
+
+impl Display for OvEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut d = f.debug_struct("OvEntry");
+
+        d.field("protected", &self.entry.protected.header)
+            .field("unprotected", &self.entry.unprotected);
+
+        match self.clone().try_payload() {
+            Ok(payload) => {
+                d.field("payload", &DisplayDebug(payload));
+            }
+            Err(_) => {
+                d.field("payload", &"Invalid");
+            }
+        }
+
+        d.field("signature", &Hex::new(&self.entry.signature))
+            .finish_non_exhaustive()
     }
 }
 
@@ -275,10 +387,14 @@ impl<'de> Deserialize<'de> for OvEntry {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct OvEntryPayload<'a> {
-    pub(crate) ov_e_hash_prev_entry: Hash<'a>,
-    pub(crate) ov_e_hash_hdr_info: Hash<'a>,
-    pub(crate) ov_e_extra: Option<CborBstr<'a, OvExtraInfo<'a>>>,
-    pub(crate) ov_e_pubkey: PublicKey<'a>,
+    /// Hash of the previous entry
+    pub ov_e_hash_prev_entry: Hash<'a>,
+    /// Hash of the GUID and Device Info in the header
+    pub ov_e_hash_hdr_info: Hash<'a>,
+    /// Extra data for the entry
+    pub ov_e_extra: Option<CborBstr<'a, OvExtraInfo<'a>>>,
+    /// Entry owner public key
+    pub ov_e_pubkey: PublicKey<'a>,
 }
 
 impl<'a> OvEntryPayload<'a> {
@@ -297,6 +413,29 @@ impl<'a> OvEntryPayload<'a> {
     /// Returns the ov entry public key
     pub fn take_pubkey(self) -> PublicKey<'a> {
         self.ov_e_pubkey
+    }
+}
+
+impl<'a> Display for OvEntryPayload<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            ov_e_hash_prev_entry,
+            ov_e_hash_hdr_info,
+            ov_e_extra,
+            ov_e_pubkey,
+        } = self;
+
+        let mut d = f.debug_struct("OvEntryPayload");
+        d.field("ov_e_hash_prev_entry", &DisplayDebug(ov_e_hash_prev_entry))
+            .field("ov_e_hash_hdr_info", &DisplayDebug(ov_e_hash_hdr_info));
+
+        if let Some(ov_e_extra) = ov_e_extra {
+            d.field("ov_e_extra", ov_e_extra.get_value());
+        } else {
+            d.field("ov_e_extra", &None::<HashMap<i64, Cow<Bytes>>>);
+        }
+
+        d.field("ov_e_pubkey", &DisplayDebug(ov_e_pubkey)).finish()
     }
 }
 
@@ -483,7 +622,7 @@ pub(crate) mod tests {
         let payload = create_ov_entry_payload();
         let case = create_ov_entry(&payload);
 
-        let (_, value) = case.payload().unwrap();
+        let value = case.try_payload().unwrap();
 
         assert_eq!(value, payload);
     }

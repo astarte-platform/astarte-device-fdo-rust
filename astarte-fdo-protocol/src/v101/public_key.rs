@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@
 //! Public Key encoding for signature keys.
 
 use std::borrow::Cow;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 
 use coset::{AsCborValue, CoseKey};
@@ -29,6 +29,7 @@ use serde_bytes::Bytes;
 
 use crate::Error;
 use crate::error::ErrorKind;
+use crate::utils::{DisplayDebug, Hex};
 
 use super::x509::CoseX509;
 
@@ -39,7 +40,7 @@ use super::x509::CoseX509;
 ///     pkBody
 /// ]
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PublicKey<'a> {
     pub(crate) pk_type: PkType,
     pub(crate) pk_enc: PkEnc,
@@ -47,6 +48,24 @@ pub struct PublicKey<'a> {
 }
 
 impl<'a> PublicKey<'a> {
+    /// Create a new public key, with [`PkEnc::X509`].
+    pub fn with_x509_pub_key(pk_type: PkType, pk_body: Cow<'a, Bytes>) -> Self {
+        Self {
+            pk_type,
+            pk_enc: PkEnc::X509,
+            pk_body: PkBody::X509(pk_body),
+        }
+    }
+
+    /// Create a new public key, with [`PkEnc::X5Chain`].
+    pub fn with_x509_certs(pk_type: PkType, pk_body: CoseX509<'a>) -> Self {
+        Self {
+            pk_type,
+            pk_enc: PkEnc::X5Chain,
+            pk_body: PkBody::X5Chain(pk_body),
+        }
+    }
+
     /// Returns the public key bytes
     pub fn key(&self) -> Option<&[u8]> {
         self.pk_body.key()
@@ -58,7 +77,7 @@ impl<'a> PublicKey<'a> {
     }
 }
 
-impl Debug for PublicKey<'_> {
+impl Display for PublicKey<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self {
             pk_type,
@@ -67,9 +86,9 @@ impl Debug for PublicKey<'_> {
         } = self;
 
         f.debug_struct("PublicKey")
-            .field("pk_type", pk_type)
-            .field("pk_enc", pk_enc)
-            .field("pk_body", pk_body)
+            .field("pk_type", &DisplayDebug(pk_type))
+            .field("pk_enc", &DisplayDebug(pk_enc))
+            .field("pk_body", &DisplayDebug(pk_body))
             .finish()
     }
 }
@@ -220,6 +239,18 @@ pub enum PkType {
     Secp384R1 = 11,
 }
 
+impl Display for PkType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PkType::Rsa2048Restr => write!(f, "RSA2048RESTR"),
+            PkType::RsaPkcs => write!(f, "RSAPKCS"),
+            PkType::RsaPss => write!(f, "RSAPSS"),
+            PkType::Secp256R1 => write!(f, "SECP256R1"),
+            PkType::Secp384R1 => write!(f, "SECP384R1"),
+        }
+    }
+}
+
 impl TryFrom<u8> for PkType {
     type Error = crate::Error;
 
@@ -265,6 +296,17 @@ pub enum PkEnc {
     X5Chain = 2,
     /// COSE key encoding
     CoseKey = 3,
+}
+
+impl Display for PkEnc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PkEnc::Crypto => write!(f, "Crypto"),
+            PkEnc::X509 => write!(f, "X509"),
+            PkEnc::X5Chain => write!(f, "X5CHAIN"),
+            PkEnc::CoseKey => write!(f, "COSEKEY"),
+        }
+    }
 }
 
 impl TryFrom<u8> for PkEnc {
@@ -318,6 +360,23 @@ impl<'a> PkBody<'a> {
                 None
             }
         }
+    }
+}
+
+impl<'a> Display for PkBody<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut d = f.debug_struct("PkBody");
+
+        match self.key() {
+            Some(key) => {
+                d.field("key", &Hex::new(key));
+            }
+            None => {
+                d.field("key", &None::<Hex>);
+            }
+        }
+
+        d.finish_non_exhaustive()
     }
 }
 

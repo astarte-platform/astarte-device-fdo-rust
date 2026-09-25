@@ -512,7 +512,7 @@ impl<'a, D> To2<'a, D, VerifyChain> {
 
         // 2. Verify variable HashHdrInfo matches TO2.OVEntry.OVEHashHdrInfo
         let entry = entry.take_ov_entry();
-        let (_, payload) = entry.clone().payload()?;
+        let payload = entry.try_payload()?;
 
         C::verify_hash(payload.hdr(), &variables.hash_hdr_info)
             .inspect_err(|_| error!("couldn't validating hash hdr info"))?;
