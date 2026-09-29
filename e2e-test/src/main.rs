@@ -163,6 +163,11 @@ enum Operation {
         /// Output the Astarte mod as JSON
         #[arg(long, default_value = "true", requires = "astarte_mod")]
         json: bool,
+
+        /// Enables the credentials reuse sub protocol
+        #[arg(long)]
+        #[cfg(feature = "credential-reuse")]
+        credential_reuse: bool,
     },
     /// View the stored files.
     View,
@@ -213,6 +218,8 @@ impl Operation {
                 astarte_mod,
                 serial_no,
                 json,
+                #[cfg(feature = "credential-reuse")]
+                credential_reuse,
             } => {
                 let Some(dc) = Di::read_existing(ctx).await? else {
                     bail!("device credentials missing, DI not yet completed");
@@ -231,9 +238,16 @@ impl Operation {
                 let rv = To1::new(&dc).rv_owner(ctx).await?;
 
                 if astarte_mod {
-                    let (to2, srv_mod) = To2::create(dc, rv, &serial_no, AstarteMod::builder())?
-                        .to2_change(ctx)
-                        .await?;
+                    let to2 = To2::create(dc, rv, &serial_no, AstarteMod::builder())?;
+
+                    #[cfg(feature = "credential-reuse")]
+                    let mut to2 = to2;
+                    #[cfg(feature = "credential-reuse")]
+                    if credential_reuse {
+                        to2.enable_credential_reuse();
+                    }
+
+                    let (to2, srv_mod) = to2.to2_change(ctx).await?;
 
                     info!("credentials received");
 
@@ -255,9 +269,16 @@ impl Operation {
 
                     to2.done(ctx).await?;
                 } else {
-                    let (to2, ()) = To2::create(dc, rv, &serial_no, SkipServiceInfo::default())?
-                        .to2_change(ctx)
-                        .await?;
+                    let to2 = To2::create(dc, rv, &serial_no, SkipServiceInfo::default())?;
+
+                    #[cfg(feature = "credential-reuse")]
+                    let mut to2 = to2;
+                    #[cfg(feature = "credential-reuse")]
+                    if credential_reuse {
+                        to2.enable_credential_reuse();
+                    }
+
+                    let (to2, ()) = to2.to2_change(ctx).await?;
 
                     to2.done(ctx).await?;
                 }

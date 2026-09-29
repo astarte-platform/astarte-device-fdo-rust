@@ -135,9 +135,11 @@ voucher=$(cat "$voucherdir/$GUID-extended")
 json=$(
     jq --null-input \
         --arg ownership_voucher "$voucher" \
+        --arg replacement_guid "sxhDP28ySaS1q9jvVxNfzA==" \
         '{
             "data": {
                 "ownership_voucher": $ownership_voucher,
+                "replacement_guid": $replacement_guid,
                 "key_name": "test",
                 "key_algorithm": "ecdsa-p256"
             }

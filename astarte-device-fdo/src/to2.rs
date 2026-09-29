@@ -31,6 +31,7 @@ use astarte_fdo_protocol::utils::CborBstr;
 use astarte_fdo_protocol::v101::device_credentials::DeviceCredential;
 use astarte_fdo_protocol::v101::eat_signature::{EAT_FDO, EAT_NONCE, EAT_UEID, EUPH_NONCE};
 use astarte_fdo_protocol::v101::error::{ErrorCode, ErrorMessage, Timestamp};
+use astarte_fdo_protocol::v101::hash_hmac::Hash;
 use astarte_fdo_protocol::v101::key_exchange::XAKeyExchange;
 use astarte_fdo_protocol::v101::ownership_voucher::OvHeader;
 use astarte_fdo_protocol::v101::public_key::PublicKey;
@@ -48,6 +49,7 @@ use astarte_fdo_protocol::v101::to2::prove_device::ProveDevice;
 use astarte_fdo_protocol::v101::to2::prove_ov_hdr::{
     ProveOvHdr, PvOvHdrPayload, PvOvHdrUnprotected,
 };
+use astarte_fdo_protocol::v101::to2::setup_device::SetupDevicePayload;
 use astarte_fdo_protocol::v101::{Message, NonceTo2ProveDv, NonceTo2ProveOv};
 use astarte_fdo_protocol::v101::{NonceTo2SetupDv, TransportProtocol};
 use coset::HeaderBuilder;
@@ -151,6 +153,7 @@ const ASTARTE_MOD_PATH: &str = "astarte.mod.cbor";
 pub struct To2<'a, D, S> {
     device_creds: DeviceCredential<'static>,
     sn: &'a str,
+    enable_credential_reuse: bool,
     service_info: D,
     state: S,
 }
@@ -180,7 +183,16 @@ impl<'a, D> To2<'a, D, Hello> {
             state,
             sn,
             service_info,
+            enable_credential_reuse: false,
         })
+    }
+
+    /// Enable the Credential Reuse sub-protocol
+    ///
+    /// <https://fidoalliance.org/specs/FDO/FIDO-Device-Onboard-PS-v1.1-20220419/FIDO-Device-Onboard-PS-v1.1-20220419.html#credreuse>
+    #[cfg(feature = "credential-reuse")]
+    pub fn enable_credential_reuse(&mut self) {
+        self.enable_credential_reuse = true;
     }
 
     /// Changes the owner
@@ -251,6 +263,7 @@ impl<'a, D> To2<'a, D, Hello> {
                             device_creds: self.device_creds,
                             sn: self.sn,
                             service_info: self.service_info,
+                            enable_credential_reuse: self.enable_credential_reuse,
                             state: Prove {
                                 hello_device,
                                 rv: self.state.rv,
@@ -383,6 +396,7 @@ impl<'a, D> To2<'a, D, Prove> {
             device_creds: self.device_creds,
             sn: self.sn,
             service_info: self.service_info,
+            enable_credential_reuse: self.enable_credential_reuse,
             state: VerifyChain {
                 hdr,
                 payload,
@@ -475,10 +489,10 @@ impl<'a, D> To2<'a, D, VerifyChain> {
             device_creds: self.device_creds,
             sn: self.sn,
             service_info: self.service_info,
+            enable_credential_reuse: self.enable_credential_reuse,
             state: ProveDv {
                 ov_header: self.state.payload.ov_header,
-                // ow_pubkey: variable.pub_key,
-                // owner_sing_info: self.state.payload.eb_sign_info,
+                ow_pubkey: variable.pub_key,
                 nonce_to2_prove_dv: self.state.hdr.nonce(),
                 x_a_key_exchange: self.state.payload.x_a_key_exchange,
                 client: self.state.client,
@@ -557,8 +571,8 @@ struct Variables<'a> {
 
 struct ProveDv {
     ov_header: CborBstr<'static, OvHeader<'static>>,
+    ow_pubkey: PublicKey<'static>,
     // TODO: do we need to check this?
-    // ow_pubkey: PublicKey<'static>,
     // owner_sing_info: EBSigInfo<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     x_a_key_exchange: XAKeyExchange<'static>,
@@ -617,7 +631,9 @@ impl<'a, D> To2<'a, D, ProveDv> {
             device_creds: self.device_creds,
             sn: self.sn,
             service_info: self.service_info,
+            enable_credential_reuse: self.enable_credential_reuse,
             state: Setup {
+                ow_pubkey: self.state.ow_pubkey,
                 ov_header: self.state.ov_header,
                 nonce_setup_dv,
                 prove_dv,
@@ -633,6 +649,10 @@ struct Setup<C>
 where
     C: Crypto,
 {
+    /// Last voucher entry owner's public key
+    ///
+    /// It's used to check for credentials reuse
+    ow_pubkey: PublicKey<'static>,
     ov_header: CborBstr<'static, OvHeader<'static>>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_setup_dv: NonceTo2SetupDv,
@@ -643,7 +663,6 @@ where
 
 // TODO: check for credential reuse and send CRED_REUSE_ERROR, or actually support credential reuse
 //
-// https://fidoalliance.org/specs/FDO/FIDO-Device-Onboard-PS-v1.1-20220419/FIDO-Device-Onboard-PS-v1.1-20220419.html#credreuse
 impl<'a, C, D> To2<'a, D, Setup<C>>
 where
     C: Crypto,
@@ -675,30 +694,87 @@ where
 
         info!("To2.SetupDevice done");
 
-        // TODO credential reuse check
-        let hmac = ctx
-            .crypto
-            .hmac(
-                &self.device_creds.dc_hmac_secret,
-                self.state.ov_header.bytes()?,
-            )
-            .await?;
+        let (hmac, credentials) = match (
+            self.enable_credential_reuse,
+            self.is_credential_reuse(&payload),
+        ) {
+            (true, true) => {
+                info!("credentials reuse used");
+
+                (None, None)
+            }
+            (false, false) | (true, false) => {
+                info!("generated new credentials");
+
+                let secret = ctx.crypto.create_hmac_secret().await?;
+
+                let hmac = ctx
+                    .crypto
+                    .hmac(&secret, self.state.ov_header.bytes()?)
+                    .await?;
+                let hash = self.owner_key_hash(ctx, &payload)?;
+
+                let device_creds = payload.into_credentials(&self.device_creds, secret, hash);
+
+                (Some(hmac), Some(device_creds))
+            }
+            (false, true) => {
+                return Err(Error::new(
+                    ErrorKind::Invalid,
+                    "credentials reuse is not enabled",
+                ));
+            }
+        };
 
         Ok(To2 {
             device_creds: self.device_creds,
             sn: self.sn,
             service_info: self.service_info,
+            enable_credential_reuse: self.enable_credential_reuse,
             state: DvReady {
-                dv_srv_info_ready: DeviceServiceInfoReady::new(Some(hmac), None),
+                credentials,
+                dv_srv_info_ready: DeviceServiceInfoReady::new(hmac, None),
                 client: self.state.client,
                 nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
                 nonce_to2_setup_dv: self.state.nonce_setup_dv,
             },
         })
     }
+
+    fn owner_key_hash<S>(
+        &mut self,
+        ctx: &mut Ctx<'_, C, S>,
+        payload: &SetupDevicePayload<'_>,
+    ) -> Result<Hash<'static>, Error> {
+        let mut buf = Vec::new();
+
+        ciborium::into_writer(payload.ow_pubkey(), &mut buf).map_err(|err| {
+            error!(error = %err, "couldn't encode ov public key");
+
+            Error::new(ErrorKind::Encode, "ov public key")
+        })?;
+
+        let dc_pub_key_hash = ctx.crypto.hash(&buf)?;
+
+        Ok(dc_pub_key_hash)
+    }
+
+    /// [Credential reuse sub-protocol](https://fidoalliance.org/specs/FDO/FIDO-Device-Onboard-PS-v1.1-20220419/FIDO-Device-Onboard-PS-v1.1-20220419.html#credreuse)
+    ///
+    /// - If TO2.SetupDevice.Guid == TO2.ProveOVHdr.OVHeader.OVGuid (GUID same as previous),
+    /// - and TO2.SetupDevice.RendezvousInfo == TO2.ProveOVHdr.OVHeader.OVRendezvousInfo (RendezvousInfo same as previous)
+    /// - and TO2.SetupDevice.Owner2Key == Owner’s current public key (which is the public key in the last entry of Ownership Voucher),
+    /// - and TO2.SetupDevice is verified as a valid COSE signature primitive
+    /// - and the device supports the credential reuse protocol
+    fn is_credential_reuse(&self, payload: &SetupDevicePayload) -> bool {
+        payload.guid() == self.device_creds.dc_guid
+            && *payload.rendezvous_info() == self.state.ov_header.ov_rv_info
+            && *payload.ow_pubkey() == self.state.ow_pubkey
+    }
 }
 
 struct DvReady {
+    credentials: Option<DeviceCredential<'static>>,
     dv_srv_info_ready: DeviceServiceInfoReady<'static>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_to2_setup_dv: NonceTo2SetupDv,
@@ -771,7 +847,9 @@ impl<'a, D> To2<'a, D, DvReady> {
             device_creds: self.device_creds,
             sn: self.sn,
             service_info: self.service_info,
+            enable_credential_reuse: self.enable_credential_reuse,
             state: DvDone {
+                credentials: self.state.credentials,
                 nonce_to2_prove_dv: self.state.nonce_to2_prove_dv,
                 nonce_to2_setup_dv: self.state.nonce_to2_setup_dv,
                 client: self.state.client,
@@ -809,6 +887,7 @@ impl<'a, D> To2<'a, D, DvReady> {
 
 /// Final message for the FDO
 pub struct DvDone {
+    credentials: Option<DeviceCredential<'static>>,
     nonce_to2_prove_dv: NonceTo2ProveDv,
     nonce_to2_setup_dv: NonceTo2SetupDv,
     client: EncryptedClient,
@@ -829,26 +908,26 @@ impl<'a, D> To2<'a, D, DvDone> {
             .send(ctx, &Done::new(self.state.nonce_to2_prove_dv))
             .await?;
 
-        // TODO: separate store credentials
-        // TODO: update the hmac, rvinfo, guid, ovpubkey
-        // TODO: add a message to permit multiple FDO
-        // TODO: connect to astarte before changing this
-        self.device_creds.dc_active = false;
-
-        let mut buf = Vec::new();
-        ciborium::into_writer(&self.device_creds, &mut buf).map_err(|err| {
-            error!(error = %err, "couldn't encode device credentials");
-
-            Error::new(ErrorKind::Encode, "device credentials")
-        })?;
-
-        ctx.storage.overwrite(DEVICE_CREDS, &buf).await?;
-
         if *done.nonce() != self.state.nonce_to2_setup_dv {
             return Err(Error::new(
                 ErrorKind::Invalid,
                 "mismatched setup device nonce",
             ));
+        }
+
+        // Device does not update the Device Credential,
+        // and Device does not internally change the HMAC,
+        if let Some(credentials) = self.state.credentials {
+            let mut buf = Vec::new();
+            ciborium::into_writer(&credentials, &mut buf).map_err(|err| {
+                error!(error = %err, "couldn't encode device credentials");
+
+                Error::new(ErrorKind::Encode, "device credentials")
+            })?;
+
+            ctx.storage.overwrite(DEVICE_CREDS, &buf).await?;
+        } else {
+            info!("reusing credentials")
         }
 
         info!("To2.Done finished");

@@ -61,3 +61,5 @@ platform-verifier = ["astarte-device-tls/platform-verifier"]
 webpki-roots = ["astarte-device-tls/webpki-roots"]
 # Uses the TPM for cryptography
 tpm = ["astarte-device-fdo/tpm"]
+# Enable the Credential Reuse sub-protocol, should be used only for demo or test scenarios
+credential-reuse = ["astarte-device-fdo/credential-reuse"]
