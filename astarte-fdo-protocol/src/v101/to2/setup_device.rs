@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,16 +42,20 @@
 //! Service. These credentials were: previously programmed by the DI protocol; programmed using
 //! another technique from the DI protocol; or previously updated by this message.
 
+use std::borrow::Cow;
 use std::io::Write;
 
 use coset::{CoseSign1, TaggedCborSerializable};
 use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 
 use crate::Error;
 use crate::error::ErrorKind;
+use crate::v101::device_credentials::DeviceCredential;
+use crate::v101::hash_hmac::Hash;
 use crate::v101::public_key::PublicKey;
 use crate::v101::rendezvous_info::RendezvousInfo;
-use crate::v101::{Guid, Message, Msgtype, NonceTo2SetupDv};
+use crate::v101::{Guid, Message, Msgtype, NonceTo2SetupDv, PROTOCOL_VERSION};
 
 /// ```cddl
 /// ;; This message replaces previous FIDO Device Onboard credentials with new ones
@@ -161,6 +165,16 @@ pub struct SetupDevicePayload<'a> {
 }
 
 impl<'a> SetupDevicePayload<'a> {
+    /// Return the GUID
+    pub fn guid(&self) -> Guid {
+        self.guid
+    }
+
+    /// Return the RendezvousInfo
+    pub fn rendezvous_info(&self) -> &RendezvousInfo<'a> {
+        &self.rendezvous_info
+    }
+
     /// Return the owner replacement key
     pub fn ow_pubkey(&self) -> &PublicKey<'a> {
         &self.owner_2_key
@@ -169,6 +183,24 @@ impl<'a> SetupDevicePayload<'a> {
     /// Return the setup device Nonce
     pub fn nonce(&self) -> &NonceTo2SetupDv {
         &self.nonce_to2_setup_dv
+    }
+
+    /// Returns a new device credentials
+    pub fn into_credentials(
+        self,
+        dc: &DeviceCredential<'_>,
+        hmac_secret: Vec<u8>,
+        pub_key_hash: Hash<'static>,
+    ) -> DeviceCredential<'a> {
+        DeviceCredential {
+            dc_active: false,
+            dc_prot_ver: PROTOCOL_VERSION,
+            dc_hmac_secret: Cow::Owned(ByteBuf::from(hmac_secret)),
+            dc_device_info: Cow::Owned(dc.dc_device_info.clone().into_owned()),
+            dc_guid: self.guid,
+            dc_rv_info: self.rendezvous_info,
+            dc_pub_key_hash: pub_key_hash,
+        }
     }
 }
 

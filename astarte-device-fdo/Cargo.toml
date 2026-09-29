@@ -32,6 +32,8 @@ description = "FIDO Device Onboarding client implementation to register with Ast
 default = []
 # Uses the TPM to store secret and sing messages
 tpm = ["dep:tss-esapi", "dep:p256"]
+# Enable the Credential Reuse sub-protocol, should be used only for demo or test scenarios
+credential-reuse = []
 # Generate binding for the C libraries
 bindgen = ["tss-esapi?/generate-bindings"]
 # Use the vendored version of the C libraries
