@@ -1,12 +1,12 @@
 // This file is part of Astarte.
 //
-// Copyright 2025 SECO Mind Srl
+// Copyright 2025, 2026 SECO Mind Srl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,9 +20,12 @@
 //! during manufacturing) to prepare it for FIDO Device Onboard onboarding.
 
 use std::borrow::Cow;
+use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
+
+use crate::utils::{DisplayDebug, Hex};
 
 use super::hash_hmac::Hash;
 use super::rendezvous_info::RendezvousInfo;
@@ -84,4 +87,28 @@ pub struct DeviceCredential<'a> {
     ///
     /// Modified in TO2
     pub dc_pub_key_hash: Hash<'a>,
+}
+
+impl<'a> Display for DeviceCredential<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            dc_active,
+            dc_prot_ver,
+            dc_hmac_secret,
+            dc_device_info,
+            dc_guid,
+            dc_rv_info,
+            dc_pub_key_hash,
+        } = self;
+
+        f.debug_struct("DeviceCredential")
+            .field("dc_active", &DisplayDebug(dc_active))
+            .field("dc_prot_ver", &DisplayDebug(dc_prot_ver))
+            .field("dc_device_info", &DisplayDebug(dc_device_info))
+            .field("dc_hmac_secret", &Hex::new(dc_hmac_secret))
+            .field("dc_guid", &DisplayDebug(dc_guid))
+            .field("dc_rv_info", &DisplayDebug(dc_rv_info))
+            .field("dc_pub_key_hash", &DisplayDebug(dc_pub_key_hash))
+            .finish()
+    }
 }

@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use astarte_device_fdo::Ctx;
 use astarte_device_fdo::astarte_fdo_protocol::utils::Hex;
+use astarte_device_fdo::astarte_fdo_protocol::v101::device_credentials::DeviceCredential;
 use astarte_device_fdo::client::http::InitialClient;
 use astarte_device_fdo::crypto::Crypto;
 use astarte_device_fdo::crypto::software::SoftwareCrypto;
@@ -35,10 +36,14 @@ use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+use self::extend::{Extend, parse_voucher};
+
 const MANUFACTURER_URL: &str = "http://127.0.0.1:8038";
 
 const SERIAL: &str = "e626207f-5fcc-456e-b1bc-250c9c8efb47";
 const MODEL: &str = "fdo-astarte";
+
+mod extend;
 
 /// Command line to run FIDO Ownership transfer
 #[derive(Debug, Parser)]
@@ -114,6 +119,11 @@ enum Command {
 
         #[command(subcommand)]
         proto: Operation,
+    },
+    /// Tools for the FDO and Ownership vaucher
+    Tool {
+        #[command(subcommand)]
+        cmd: Tool,
     },
 }
 
@@ -258,6 +268,53 @@ impl Operation {
     }
 }
 
+/// Operation to perform
+#[derive(Debug, Clone, Subcommand)]
+enum Tool {
+    /// Device initialization.
+    ///
+    /// Generates the device keys and ownership voucher with the manufacturing server.
+    OvExtend {
+        #[command(flatten)]
+        args: Extend,
+    },
+    /// View the information of the ownership voucher
+    OvView {
+        /// Path to the voucher
+        voucher: PathBuf,
+    },
+    /// View the information of a device credentials
+    DcView {
+        /// Path to the voucher
+        device_credentials: PathBuf,
+    },
+}
+
+impl Tool {
+    async fn run(self) -> eyre::Result<()> {
+        match self {
+            Tool::OvExtend { args } => args.run().await,
+            Tool::OvView { voucher } => {
+                let content = tokio::fs::read_to_string(voucher).await?;
+                let voucher = parse_voucher(&content)?;
+
+                println!("{voucher:#}");
+
+                Ok(())
+            }
+            Tool::DcView { device_credentials } => {
+                let content = tokio::fs::read(&device_credentials).await?;
+
+                let dc: DeviceCredential = ciborium::from_reader(content.as_slice())?;
+
+                println!("{dc:#}");
+
+                Ok(())
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
@@ -319,6 +376,7 @@ async fn main() -> eyre::Result<()> {
 
             proto.run(&mut ctx).await?;
         }
+        Command::Tool { cmd } => cmd.run().await?,
     }
 
     Ok(())

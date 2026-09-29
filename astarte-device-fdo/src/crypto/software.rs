@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,7 +24,7 @@ use astarte_fdo_protocol::Error;
 use astarte_fdo_protocol::error::ErrorKind;
 use astarte_fdo_protocol::v101::hash_hmac::{HMac, Hashtype};
 use aws_lc_rs::rand::{SecureRandom, SystemRandom};
-use aws_lc_rs::signature::{EcdsaKeyPair, KeyPair};
+use aws_lc_rs::signature::{EcdsaKeyPair, KeyPair, RsaKeyPair};
 use coset::{CoseSign1, CoseSign1Builder, HeaderBuilder};
 use rcgen::{CertificateParams, DistinguishedName, DnType};
 use serde_bytes::ByteBuf;
@@ -226,18 +226,20 @@ where
     }
 }
 
-struct RcgenKeyCompat<'a> {
-    keys: &'a EcdsaKeyPair,
+/// Creates a certificate from a key
+pub struct RcgenKeyCompat<'a, T> {
+    keys: &'a T,
     rand: &'a SystemRandom,
 }
 
-impl<'a> RcgenKeyCompat<'a> {
-    fn new(keys: &'a EcdsaKeyPair, rand: &'a SystemRandom) -> Self {
+impl<'a, T> RcgenKeyCompat<'a, T> {
+    /// Creates a new certificate
+    pub fn new(keys: &'a T, rand: &'a SystemRandom) -> Self {
         Self { keys, rand }
     }
 }
 
-impl rcgen::PublicKeyData for RcgenKeyCompat<'_> {
+impl rcgen::PublicKeyData for RcgenKeyCompat<'_, EcdsaKeyPair> {
     fn der_bytes(&self) -> &[u8] {
         self.keys.public_key().as_ref()
     }
@@ -247,11 +249,38 @@ impl rcgen::PublicKeyData for RcgenKeyCompat<'_> {
     }
 }
 
-impl rcgen::SigningKey for RcgenKeyCompat<'_> {
+impl rcgen::SigningKey for RcgenKeyCompat<'_, EcdsaKeyPair> {
     fn sign(&self, msg: &[u8]) -> Result<Vec<u8>, rcgen::Error> {
         self.keys
             .sign(self.rand, msg)
             .map(|signature| signature.as_ref().to_vec())
             .map_err(|_| rcgen::Error::RingUnspecified)
+    }
+}
+
+impl rcgen::PublicKeyData for RcgenKeyCompat<'_, RsaKeyPair> {
+    fn der_bytes(&self) -> &[u8] {
+        self.keys.public_key().as_ref()
+    }
+
+    fn algorithm(&self) -> &'static rcgen::SignatureAlgorithm {
+        &rcgen::PKCS_RSA_SHA256
+    }
+}
+
+impl rcgen::SigningKey for RcgenKeyCompat<'_, RsaKeyPair> {
+    fn sign(&self, msg: &[u8]) -> Result<Vec<u8>, rcgen::Error> {
+        let mut signature = vec![0; self.keys.public_modulus_len()];
+
+        self.keys
+            .sign(
+                &aws_lc_rs::signature::RSA_PKCS1_SHA256,
+                self.rand,
+                msg,
+                &mut signature,
+            )
+            .map_err(|_| rcgen::Error::RingUnspecified)?;
+
+        Ok(signature)
     }
 }

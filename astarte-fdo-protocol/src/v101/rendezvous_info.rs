@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,14 +23,31 @@
 //! choice of which Rendezvous Server(s) to use and how to access it or them.
 
 use std::borrow::Cow;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
+use std::net::IpAddr;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
 
 use crate::Error;
 use crate::error::ErrorKind;
-use crate::utils::OneOrMore;
+use crate::utils::{Hex, OneOrMore};
+
+use super::hash_hmac::Hash;
+use super::{DnsAddress, IpAddress};
+
+macro_rules! decode_rv_value {
+    ($value:expr, $name:literal) => {
+        ciborium::from_reader::<_, &[u8]>($value)
+            .map_err(|err| {
+                #[cfg(feature = "tracing")]
+                tracing::error!(error = %err, concat!("couldn't decode ", $name));
+
+                Error::new(ErrorKind::Decode, $name)
+            })
+    };
+}
 
 /// ```cddl
 /// RendezvousInfo = [
@@ -58,6 +75,154 @@ pub struct RendezvousInstr<'a> {
     pub rv_variable: RvVariable,
     /// Instruction to contact the Rendezvous Server.
     pub rv_value: RvValue<'a>,
+}
+
+impl<'a> RendezvousInstr<'a> {
+    /// Attempts to decode the value as an IP address.
+    pub fn try_as_ip_address(&self) -> Result<IpAddress, Error> {
+        let ip: IpAddress = decode_rv_value!(self.rv_value.as_ref(), "ip address")?;
+
+        Ok(ip)
+    }
+
+    /// Attempts to decode the value as a device port.
+    pub fn try_as_dev_port(&self) -> Result<u16, Error> {
+        let port: u16 = decode_rv_value!(self.rv_value.as_ref(), "device port")?;
+        Ok(port)
+    }
+
+    /// Attempts to decode the value as an owner port.
+    pub fn try_as_owner_port(&self) -> Result<u16, Error> {
+        let port: u16 = decode_rv_value!(self.rv_value.as_ref(), "owner port")?;
+        Ok(port)
+    }
+
+    /// Attempts to decode the value as a DNS address.
+    pub fn try_as_dns(&self) -> Result<DnsAddress<'a>, Error> {
+        let dns: DnsAddress = decode_rv_value!(self.rv_value.as_ref(), "dns")?;
+        Ok(dns)
+    }
+
+    /// Attempts to decode the value as a server certificate hash.
+    pub fn try_as_sv_cert_hash(&self) -> Result<Hash<'a>, Error> {
+        let hash: Hash = decode_rv_value!(self.rv_value.as_ref(), "server cert hash")?;
+        Ok(hash)
+    }
+
+    /// Attempts to decode the value as a client/CA certificate hash.
+    pub fn try_as_cl_cert_hash(&self) -> Result<Hash<'a>, Error> {
+        let hash: Hash = decode_rv_value!(self.rv_value.as_ref(), "ca cert hash")?;
+        Ok(hash)
+    }
+
+    /// Attempts to decode the value into a boolean indicating if user input is needed.
+    pub fn try_as_user_input(&self) -> Result<bool, Error> {
+        let input: bool = decode_rv_value!(self.rv_value.as_ref(), "needs user input")?;
+        Ok(input)
+    }
+
+    /// Attempts to decode the value as a WiFi SSID.
+    pub fn try_as_wifi_ssid(&self) -> Result<Cow<'a, str>, Error> {
+        let ssid: Cow<'a, str> = decode_rv_value!(self.rv_value.as_ref(), "wifi ssid")?;
+
+        Ok(ssid)
+    }
+
+    /// Attempts to decode the value as a WiFi password.
+    pub fn try_as_wifi_pw(&self) -> Result<Cow<'a, str>, Error> {
+        let pw: Cow<'a, str> = decode_rv_value!(self.rv_value.as_ref(), "wifi ssid")?;
+
+        Ok(pw)
+    }
+
+    /// Attempts to decode the value as a connection medium.
+    pub fn try_as_medium(&self) -> Result<RvMediumValue, Error> {
+        let medium: RvMediumValue = decode_rv_value!(self.rv_value.as_ref(), "medium")?;
+
+        Ok(medium)
+    }
+
+    /// Attempts to decode the value as a protocol value.
+    pub fn try_as_protocol(&self) -> Result<RvProtocolValue, Error> {
+        let proto: RvProtocolValue = decode_rv_value!(self.rv_value.as_ref(), "protocol value")?;
+
+        Ok(proto)
+    }
+
+    /// Attempts to decode the value as a delay duration.
+    pub fn try_as_delaysec(&self) -> Result<Duration, Error> {
+        let delay: u32 = decode_rv_value!(self.rv_value.as_ref(), "delay")?;
+        let delay = Duration::from_secs(delay.into());
+
+        Ok(delay)
+    }
+}
+
+impl<'a> Display for RendezvousInstr<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}", self.rv_variable)?;
+
+        match self.rv_variable {
+            RvVariable::DevOnly | RvVariable::OwnerOnly => {
+                write!(f, "]")
+            }
+            RvVariable::IPAddress => match self.try_as_ip_address() {
+                Ok(ip) => {
+                    write!(f, ", {}]", IpAddr::from(ip))
+                }
+                Err(_) => {
+                    write!(f, ", INVALID({})]", Hex::new(&self.rv_value))
+                }
+            },
+            RvVariable::DevPort => match self.try_as_dev_port() {
+                Ok(port) => write!(f, ", {}]", port),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::OwnerPort => match self.try_as_owner_port() {
+                Ok(port) => write!(f, ", {}]", port),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::Dns => match self.try_as_dns() {
+                Ok(dns) => write!(f, ", {}]", dns),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::SvCertHash => match self.try_as_sv_cert_hash() {
+                Ok(hash) => write!(f, ", {}]", hash),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::ClCertHash => match self.try_as_cl_cert_hash() {
+                Ok(hash) => write!(f, ", {}]", hash),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::UserInput => match self.try_as_user_input() {
+                Ok(input) => write!(f, ", {}]", input),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::WifiSsid => match self.try_as_wifi_ssid() {
+                Ok(ssid) => write!(f, ", {}]", ssid),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::WifiPw => match self.try_as_wifi_pw() {
+                Ok(pw) => write!(f, ", {}]", pw),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::Medium => match self.try_as_medium() {
+                Ok(medium) => write!(f, ", {}]", medium),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::Protocol => match self.try_as_protocol() {
+                Ok(proto) => write!(f, ", {}]", proto),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::Delaysec => match self.try_as_delaysec() {
+                Ok(delay) => write!(f, ", {}]", delay.as_secs()),
+                Err(_) => write!(f, ", INVALID({})]", Hex::new(&self.rv_value)),
+            },
+            RvVariable::Bypass | RvVariable::ExtRV => {
+                write!(f, ", {}]", Hex::new(&self.rv_value))
+            }
+        }
+    }
 }
 
 impl Serialize for RendezvousInstr<'_> {
@@ -109,7 +274,7 @@ impl<'de> Deserialize<'de> for RendezvousInstr<'_> {
 ///     RVBypass      => 14,
 ///     RVExtRV       => 15
 /// )
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "u8", into = "u8")]
 #[repr(u8)]
 pub enum RvVariable {
@@ -155,7 +320,7 @@ pub enum RvVariable {
     ExtRV = 15,
 }
 
-impl Debug for RvVariable {
+impl Display for RvVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::DevOnly => write!(f, "RVDevOnly(0)"),
@@ -246,6 +411,20 @@ pub enum RvProtocolValue {
     CoapTcp = 5,
     /// CoAP protocol over UDP, if supported
     CoapUdp = 6,
+}
+
+impl Display for RvProtocolValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RvProtocolValue::Rest => write!(f, "Rest(0)"),
+            RvProtocolValue::Http => write!(f, "Http(1)"),
+            RvProtocolValue::Https => write!(f, "Https(2)"),
+            RvProtocolValue::Tcp => write!(f, "Tcp(3)"),
+            RvProtocolValue::Tls => write!(f, "Tls(4)"),
+            RvProtocolValue::CoapTcp => write!(f, "CoapTcp(5)"),
+            RvProtocolValue::CoapUdp => write!(f, "CoapUdp(6)"),
+        }
+    }
 }
 
 impl TryFrom<u8> for RvProtocolValue {
@@ -376,6 +555,35 @@ pub enum RvMediumValue {
     EthAll = 20,
     /// As many Wifi interfaces as makes sense for this platform, in any order.
     WifiAll = 21,
+}
+
+impl Display for RvMediumValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RvMediumValue::Eth0 => write!(f, "Eth0"),
+            RvMediumValue::Eth1 => write!(f, "Eth1"),
+            RvMediumValue::Eth2 => write!(f, "Eth2"),
+            RvMediumValue::Eth3 => write!(f, "Eth3"),
+            RvMediumValue::Eth4 => write!(f, "Eth4"),
+            RvMediumValue::Eth5 => write!(f, "Eth5"),
+            RvMediumValue::Eth6 => write!(f, "Eth6"),
+            RvMediumValue::Eth7 => write!(f, "Eth7"),
+            RvMediumValue::Eth8 => write!(f, "Eth8"),
+            RvMediumValue::Eth9 => write!(f, "Eth9"),
+            RvMediumValue::Wifi0 => write!(f, "Wifi0"),
+            RvMediumValue::Wifi1 => write!(f, "Wifi1"),
+            RvMediumValue::Wifi2 => write!(f, "Wifi2"),
+            RvMediumValue::Wifi3 => write!(f, "Wifi3"),
+            RvMediumValue::Wifi4 => write!(f, "Wifi4"),
+            RvMediumValue::Wifi5 => write!(f, "Wifi5"),
+            RvMediumValue::Wifi6 => write!(f, "Wifi6"),
+            RvMediumValue::Wifi7 => write!(f, "Wifi7"),
+            RvMediumValue::Wifi8 => write!(f, "Wifi8"),
+            RvMediumValue::Wifi9 => write!(f, "Wifi9"),
+            RvMediumValue::EthAll => write!(f, "EthAll"),
+            RvMediumValue::WifiAll => write!(f, "WifiAll"),
+        }
+    }
 }
 
 impl TryFrom<u8> for RvMediumValue {
@@ -526,7 +734,7 @@ pub(crate) mod tests {
 
         insta_settings!({
             for case in cases {
-                insta::assert_debug_snapshot!(case);
+                insta::assert_snapshot!(case);
             }
         });
     }

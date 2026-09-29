@@ -6,7 +6,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//    http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@
 //!
 
 use std::borrow::Cow;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use serde::{Deserialize, Serialize};
 use serde_bytes::Bytes;
@@ -47,6 +47,15 @@ pub enum CoseX509<'a> {
     Certs(Repetition<1, X509<'a>>),
     /// A single
     One(X509<'a>),
+}
+
+impl<'a> Display for CoseX509<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CoseX509::Certs(repetition) => Display::fmt(repetition, f),
+            CoseX509::One(cert) => Display::fmt(cert, f),
+        }
+    }
 }
 
 impl<'a> CoseX509<'a> {
@@ -76,6 +85,17 @@ pub struct X509<'a> {
     key: Vec<u8>,
 }
 
+impl<'a> Display for X509<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self { cert, key } = self;
+
+        f.debug_struct("X509")
+            .field("cert", &Hex::new(cert))
+            .field("key", &Hex::new(key))
+            .finish_non_exhaustive()
+    }
+}
+
 impl<'a> X509<'a> {
     /// Parses a DER encoded certificate from a slice.
     pub fn parse(cert: &'a [u8]) -> Result<Self, Error> {
@@ -94,7 +114,8 @@ impl<'a> X509<'a> {
         })
     }
 
-    pub(crate) fn key(&self) -> &[u8] {
+    /// Return the public key of the certificate
+    pub fn key(&self) -> &[u8] {
         &self.key
     }
 }

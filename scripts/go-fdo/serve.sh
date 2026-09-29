@@ -8,7 +8,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,7 +46,7 @@ if ! $CONTAINER container inspect fdo-manufacturer; then
         --log-level=debug manufacturing 0.0.0.0:8038 \
         --db-type=sqlite --db-dsn "file:/tmp/fdo/db/manufacturer.db" \
         --manufacturing-key /tmp/fdo/certs/manufacturer.key \
-        --owner-cert /tmp/fdo/certs/owner.crt \
+        --owner-cert /tmp/fdo/certs/intermediate.crt \
         --device-ca-cert /tmp/fdo/certs/device_ca.crt \
         --device-ca-key /tmp/fdo/certs/device_ca.key
 fi

@@ -77,7 +77,7 @@ if ! podman container exists fdo-manufacturer; then
         --log-level=debug \
         --db-type=sqlite --db-dsn "file:/tmp/fdo/db/manufacturer.db" \
         --manufacturing-key /tmp/fdo/certs/manufacturer.key \
-        --owner-cert /tmp/fdo/certs/owner.crt \
+        --owner-cert /tmp/fdo/certs/intermediate.crt \
         --device-ca-cert /tmp/fdo/certs/device_ca.crt \
         --device-ca-key /tmp/fdo/certs/device_ca.key
 fi
@@ -122,7 +122,15 @@ mkdir -p "$voucherdir"
 
 ./scripts/common/try-curl.sh "http://localhost:8038/api/v1/vouchers/${GUID}" --output "$voucherdir/$GUID"
 
-voucher=$(cat "$voucherdir/$GUID")
+# Extend the voucher
+cargo run -- tool ov-extend \
+    --in-format der --alg secp256r1 \
+    --current-ow-priv "$FDODIR/certs/intermediate.key" \
+    --next-ow-cert "$FDODIR/certs/owner.crt" \
+    --voucher "$FDODIR/ov/ownervoucher/$GUID" \
+    --output "$FDODIR/ov/ownervoucher/$GUID-extended"
+
+voucher=$(cat "$voucherdir/$GUID-extended")
 
 json=$(
     jq --null-input \
