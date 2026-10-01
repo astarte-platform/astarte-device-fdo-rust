@@ -46,7 +46,7 @@ jobs:
       - name: Create Astarte Cluster
         uses: astarte-platform/astarte-cluster-action@1f7064e5924b650213d4fccad6bc123c7e058702
         with:
-          astarte_version: 1.4.0-rc.5
+          astarte_version: 1.4.0-rc.6
           astarte_chart_version: 26.7.0-rc.4
       - uses: ./.github/actions/install-deps
       - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
