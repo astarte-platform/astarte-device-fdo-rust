@@ -66,11 +66,11 @@ jobs:
         with:
           submodules: true
       - uses: ./.github/actions/install-deps
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: astral-sh/setup-uv@v10.3.3
       - uses: go-task/setup-task@v2.2.0
       - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
       - uses: mozilla-actions/sccache-action@v0.0.11
-      - uses: taiki-e/install-action@v2.87.31
+      - uses: taiki-e/install-action@v2.88.0
         with:
           tool: |
             cargo-docs-rs
