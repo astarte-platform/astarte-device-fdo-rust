@@ -62,11 +62,11 @@ jobs:
           submodules: true
           persist-credentials: false
       - uses: ./.github/actions/install-deps
-      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
       - name: Run release-plz
-        uses: release-plz/action@v0.5.147
+        uses: release-plz/action@v0.5.148
         with:
           command: release
         env:
@@ -92,11 +92,11 @@ jobs:
           submodules: true
           persist-credentials: false
       - uses: ./.github/actions/install-deps
-      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
       - name: Run release-plz
-        uses: release-plz/action@v0.5.147
+        uses: release-plz/action@v0.5.148
         with:
           command: release-pr
         env:
