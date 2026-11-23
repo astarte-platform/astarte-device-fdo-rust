@@ -1,4 +1,6 @@
 <!--
+This file is part of Astarte.
+
 Copyright 2025, 2026 SECO Mind Srl
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.1.0](https://github.com/astarte-platform/astarte-device-fdo-rust/compare/astarte-fdo-protocol-v1.0.5...astarte-fdo-protocol-v1.1.0) - 2026-09-29
+
 ### `astarte-fdo-protocol` - [1.1.0](https://github.com/astarte-platform/astarte-device-fdo-rust/compare/astarte-fdo-protocol-v1.0.5...astarte-fdo-protocol-v1.1.0) - 2026-09-29
 
 #### Added
@@ -63,19 +66,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.5](https://github.com/astarte-platform/astarte-device-fdo-rust/compare/v1.0.4...v1.0.5) - 2026-09-17
+
 ### `astarte-device-fdo` - [1.0.5](https://github.com/astarte-platform/astarte-device-fdo-rust/compare/v1.0.4...v1.0.5) - 2026-09-17
 
 #### Fixed
 
 - _(to2)_ update the prev entry hash correctly
 
-
-
 ## [1.0.4](https://github.com/astarte-platform/astarte-device-fdo-rust/compare/v1.0.3...v1.0.4) - 2026-09-10
+
 ### `astarte-device-fdo` - [1.0.4](https://github.com/astarte-platform/astarte-device-fdo-rust/compare/v1.0.3...v1.0.4) - 2026-09-10
 
 #### Changed
 
 - _(mime)_ improve the handling of mime types
-
-

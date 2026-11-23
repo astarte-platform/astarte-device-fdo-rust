@@ -8,7 +8,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +26,7 @@ trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 mf_info=$(
     printf \
         '[{"dns":"%s","device_port":"443","owner_port":"443","protocol":"https","delay_seconds":10},{"dns":"%s","device_port":"80","owner_port":"80","protocol":"http","delay_seconds":10}]' \
-        $BOARD_RV_DOMAIN $BOARD_RV_DOMAIN
+        "$BOARD_RV_DOMAIN" "$BOARD_RV_DOMAIN"
 )
 
 try_curl() {

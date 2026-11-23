@@ -48,7 +48,6 @@ futures-core.workspace = true
 futures-util.workspace = true
 http.workspace = true
 mime.workspace = true
-p256 = { workspace = true, optional = true, default-features = false, features = ["ecdsa-core", "alloc"] }
 pin-project-lite.workspace = true
 rand = { workspace = true, default-features = false, features = ["sys_rng", "thread_rng"] }
 rcgen = { workspace = true, default-features = false, features = ["crypto", "pem", "aws_lc_rs"] }
@@ -63,6 +62,7 @@ zeroize.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tss-esapi = { workspace = true, optional = true }
+p256 = { workspace = true, optional = true, default-features = false, features = ["ecdsa-core", "alloc"] }
 
 [dev-dependencies]
 insta.workspace = true

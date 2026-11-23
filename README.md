@@ -69,6 +69,6 @@ following shape:
   "base_url": "http://api.astarte.localhost",
   "realm": "test",
   "device_id": "Xojzk32TQxmw0zYzL4lA1w",
-  "secret": "SECRET",
+  "secret": "SECRET"
 }
 ```

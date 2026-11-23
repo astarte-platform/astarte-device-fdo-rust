@@ -61,8 +61,16 @@ component_management:
       paths:
         - astarte-device-fdo/src/**
         - astarte-device-fdo/src/*
+      statuses: # the core component has its own statuses
+        - type: project
+          target: auto
+        - type: patch
     - component_id: "astarte-fdo-protocol"
       name: fdo-protocol
       paths:
         - astarte-fdo-protocol/src/**
         - astarte-fdo-protocol/src/*
+      statuses: # the core component has its own statuses
+        - type: project
+          target: auto
+        - type: patch
