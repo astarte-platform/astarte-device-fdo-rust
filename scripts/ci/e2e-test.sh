@@ -18,15 +18,31 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-set -exEuo pipefail
+set -eEuo pipefail
 
 # Trap -e errors
 trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
+# Let's you enable debug mode in the github action
+if [[ -n ${RUNNER_DEBUG:-} ]]; then
+    set -x
+    export RUST_LOG='trace'
+fi
+
 export ASTARTE_API_URL="${ASTARTE_API_URL:-https://api.autotest.astarte-platform.org}"
 export RENDEZVOUS_HOST=${RENDEZVOUS_HOST:-rendezvous.localhost}
 export FDODIR='./.tmp/fdo'
-export FDO_DEVICE_GUID="$FDODIR/device_guid.txt"
+export RUST_LOG="${RUST_LOG:-debug}"
+
+if [[ -z ${ASTARTE_DEVICE_ID:-} ]]; then
+    ASTARTE_DEVICE_ID=$(astartectl utils device-id generate-random)
+    export ASTARTE_DEVICE_ID
+fi
+
+device_storage="$FDODIR/fdo-astarte/$ASTARTE_DEVICE_ID"
+export FDO_DEVICE_GUID="$device_storage/device_guid.txt"
+
+mkdir -p "$device_storage"
 
 ./scripts/astarte/healthy.sh
 ./scripts/common/try-curl.sh "$RENDEZVOUS_HOST/health"
@@ -40,10 +56,11 @@ astarte_token=$(astartectl utils gen-jwt all-realm-apis)
 okey_pem=$(
     openssl ec -in $FDODIR/certs/owner.key -inform der -out - -outform pem
 )
+okey_name=$(echo "$okey_pem" | sha256sum | awk '{ print $1 }')
 json=$(
     jq --null-input \
         --arg key_data "$okey_pem" \
-        --arg key_name "test" \
+        --arg key_name "$okey_name" \
         '{
             "data": {
                 "action": "upload",
@@ -57,7 +74,7 @@ json=$(
 if ! ./scripts/common/try-curl.sh \
     --header "Authorization: Bearer $astarte_token" \
     --request GET "$ASTARTE_API_URL/pairing/v1/test/fdo/owner_keys" |
-    jq --exit-status '.es256 | any(. == "test")'; then
+    jq --exit-status ".es256 | any(. == \"$okey_name\")"; then
 
     ./scripts/common/try-curl.sh \
         --header "Authorization: Bearer $astarte_token" \
@@ -92,14 +109,21 @@ mf_info=$(printf '[
   }
 ]' "$RENDEZVOUS_HOST")
 
-./scripts/common/try-curl.sh -X POST 'http://localhost:8038/api/v1/rvinfo' --json "$mf_info" ||
+# Check for rvinfo (responds with 404)
+if ! curl --fail-with-body http://localhost:8038/api/v1/rvinfo; then
+    ./scripts/common/try-curl.sh -X POST 'http://localhost:8038/api/v1/rvinfo' --json "$mf_info"
+else
     ./scripts/common/try-curl.sh -X PUT 'http://localhost:8038/api/v1/rvinfo' --json "$mf_info"
+fi
 
 ###
 # DI part of the protocol
 #
 
-cargo e2e-test plain-fs di --export-guid "$FDO_DEVICE_GUID"
+cargo e2e-test plain-fs di \
+    --storage "$device_storage" \
+    --serial-no "$ASTARTE_DEVICE_ID" \
+    --export-guid "$FDO_DEVICE_GUID"
 
 GUID=$(
     curl --fail-with-body http://localhost:8038/api/v1/vouchers |
@@ -131,16 +155,20 @@ cargo run -- tool ov-extend \
     --output "$FDODIR/ov/ownervoucher/$GUID-extended"
 
 voucher=$(cat "$voucherdir/$GUID-extended")
+replacement_guid=$(head -c 16 /dev/urandom | base64)
 
 json=$(
     jq --null-input \
+        --arg okey_name "$okey_name" \
         --arg ownership_voucher "$voucher" \
-        --arg replacement_guid "sxhDP28ySaS1q9jvVxNfzA==" \
+        --arg replacement_guid "$replacement_guid" \
+        --arg hw_id "$ASTARTE_DEVICE_ID" \
         '{
             "data": {
+                "hw_id": $hw_id,
                 "ownership_voucher": $ownership_voucher,
                 "replacement_guid": $replacement_guid,
-                "key_name": "test",
+                "key_name": $okey_name,
                 "key_algorithm": "ecdsa-p256"
             }
          }'
@@ -154,4 +182,7 @@ json=$(
 ###
 # TO1 and TO2 part of the protocol
 #
-cargo e2e-test plain-fs to --astarte-mod=true
+cargo e2e-test plain-fs to \
+    --storage "$device_storage" \
+    --serial-no "$ASTARTE_DEVICE_ID" \
+    --astarte-mod=true
