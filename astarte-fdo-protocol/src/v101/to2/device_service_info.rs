@@ -253,7 +253,104 @@ mod tests {
 
     #[test]
     fn device_service_info_roundtrip() {
-        let dv = DeviceServiceInfo::example("device-sn");
+        let dv = DeviceServiceInfo {
+            is_more_service_info: false,
+            service_info: vec![
+                ServiceInfoKv {
+                    service_info_key: "devmod:active".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Bool(true).to_vec().unwrap().into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:os".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("Linux".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:arch".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("X86_64".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:version".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("Ubuntu* 16.0.4LTS".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:device".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("fdo-astarte".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:sn".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("sn".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:sep".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text(":".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:bin".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Text("X86_64".to_string())
+                            .to_vec()
+                            .unwrap()
+                            .into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:nummodules".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Integer(6.into()).to_vec().unwrap().into(),
+                    ),
+                },
+                ServiceInfoKv {
+                    service_info_key: "devmod:modules".into(),
+                    service_info_val: Cow::Owned(
+                        ciborium::Value::Array(vec![
+                            ciborium::Value::Integer(0.into()),
+                            ciborium::Value::Integer(6.into()),
+                            ciborium::Value::Text("devmod:os".to_string()),
+                            ciborium::Value::Text("devmod:arch".to_string()),
+                            ciborium::Value::Text("devmod:version".to_string()),
+                            ciborium::Value::Text("devmod:device".to_string()),
+                            ciborium::Value::Text("devmod:sep".to_string()),
+                            ciborium::Value::Text("devmod:bin".to_string()),
+                        ])
+                        .to_vec()
+                        .unwrap()
+                        .into(),
+                    ),
+                },
+            ],
+        };
 
         let mut buf = Vec::new();
 
@@ -264,6 +361,7 @@ mod tests {
         assert_eq!(res, dv);
 
         insta_settings!({
+            insta::assert_debug_snapshot!(dv);
             insta::assert_binary_snapshot!(".cbor", buf);
         });
     }

@@ -8,7 +8,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,7 +25,7 @@ trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
 
 cd "$REPOS/astarte"
 
-for i in {0..6}; do
+for _ in {0..6}; do
     if ! astartectl housekeeping realms create -y "$REALM" \
         --astarte-url "$ASTARTE_API_URL" \
         --realm-public-key "${REALM}_public.pem" \
